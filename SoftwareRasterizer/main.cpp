@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <vector>
 #include <cstdint>
+#include "FrameBuffer.h"
 
 int main(int argc, char* argv[])
 {
@@ -17,7 +18,7 @@ int main(int argc, char* argv[])
         WIDTH, HEIGHT);
 
     // Your CPU-side framebuffer — this is what you'll draw into
-    std::vector<uint32_t> framebuffer(WIDTH * HEIGHT, 0xFF000000);
+	FrameBuffer framebuffer(WIDTH, HEIGHT);
 
     bool running = true;
     SDL_Event event;
@@ -27,15 +28,23 @@ int main(int argc, char* argv[])
         while (SDL_PollEvent(&event))
             if (event.type == SDL_EVENT_QUIT) running = false;
 
-        // --- YOUR RENDERING CODE GOES HERE ---
-        // Write pixels into framebuffer like:
-        // framebuffer[y * WIDTH + x] = 0xFFRRGGBB;
+		framebuffer.clearbuffer();
 
-        // Draw a test pixel in the center
-        framebuffer[(HEIGHT / 2) * WIDTH + (WIDTH / 2)] = 0xFFFF0000; // red
+        // ---------------------------------------------------------
+        // Triangle Drawing Tests (t0, t1, t2)
+        // ---------------------------------------------------------
 
+        // t0 - Red
+        framebuffer.DrawTriangle(Vector2<int>(10, 70), Vector2<int>(50, 160), Vector2<int>(70, 80), 0xFFFF0000);
+
+        // t1 - Green
+        framebuffer.DrawTriangle(Vector2<int>(180, 50), Vector2<int>(150, 1), Vector2<int>(70, 180), 0xFF00FF00);
+
+        // t2 - Blue
+        framebuffer.DrawTriangle(Vector2<int>(180, 150), Vector2<int>(120, 160), Vector2<int>(130, 180), 0xFF0000FF);
+        
         // Blit framebuffer to screen
-        SDL_UpdateTexture(texture, nullptr, framebuffer.data(), WIDTH * sizeof(uint32_t));
+        SDL_UpdateTexture(texture, nullptr, framebuffer.getBuffer().data(), WIDTH * sizeof(uint32_t));
         SDL_RenderTexture(renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
     }

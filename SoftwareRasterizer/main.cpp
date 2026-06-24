@@ -30,7 +30,17 @@ int main(int argc, char* argv[])
 
 		framebuffer.clearbuffer();
 
+        // 1. Large Red Outer Triangle
         framebuffer.DrawTriangle(Vector2<int>(400, 69), Vector2<int>(200, 415), Vector2<int>(600, 415), 0xFFFF0000);
+
+        // 2. Top-Center Green Inner Triangle
+        framebuffer.DrawTriangle(Vector2<int>(400, 69), Vector2<int>(300, 242), Vector2<int>(500, 242), 0xFF00FF00);
+
+        // 3. Bottom-Left Blue Inner Triangle
+        framebuffer.DrawTriangle(Vector2<int>(300, 242), Vector2<int>(200, 415), Vector2<int>(400, 415), 0xFF0000FF);
+
+        // 4. Bottom-Right Yellow Inner Triangle
+        framebuffer.DrawTriangle(Vector2<int>(500, 242), Vector2<int>(400, 415), Vector2<int>(600, 415), 0xFFFFFF00);
 
 
         

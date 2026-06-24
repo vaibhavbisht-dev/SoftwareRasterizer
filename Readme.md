@@ -279,6 +279,6 @@ bool isPointInTriangle(Vector2<int> p, Vector2<int> a, Vector2<int> b, Vector2<i
 
 }
 ```
-**Test Result:**
+**Test Result:**<br>
 ![Screenshot-2026-06-24-191141.png](./Images/Screenshot/Triangles.png)
 

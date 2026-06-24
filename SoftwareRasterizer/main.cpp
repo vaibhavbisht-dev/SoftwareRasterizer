@@ -30,18 +30,9 @@ int main(int argc, char* argv[])
 
 		framebuffer.clearbuffer();
 
-        // ---------------------------------------------------------
-        // Triangle Drawing Tests (t0, t1, t2)
-        // ---------------------------------------------------------
+        framebuffer.DrawTriangle(Vector2<int>(400, 69), Vector2<int>(200, 415), Vector2<int>(600, 415), 0xFFFF0000);
 
-        // t0 - Red
-        framebuffer.DrawTriangle(Vector2<int>(10, 70), Vector2<int>(50, 160), Vector2<int>(70, 80), 0xFFFF0000);
 
-        // t1 - Green
-        framebuffer.DrawTriangle(Vector2<int>(180, 50), Vector2<int>(150, 1), Vector2<int>(70, 180), 0xFF00FF00);
-
-        // t2 - Blue
-        framebuffer.DrawTriangle(Vector2<int>(180, 150), Vector2<int>(120, 160), Vector2<int>(130, 180), 0xFF0000FF);
         
         // Blit framebuffer to screen
         SDL_UpdateTexture(texture, nullptr, framebuffer.getBuffer().data(), WIDTH * sizeof(uint32_t));

@@ -28,4 +28,6 @@ private:
 	int m_width;
 	int m_height;
 	std::vector<uint32_t> m_buffer;
+
+	bool isPointInTriangle(Vector2<int> p, Vector2<int> a, Vector2<int> b, Vector2<int> c);
 };

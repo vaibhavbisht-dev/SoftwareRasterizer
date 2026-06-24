@@ -64,35 +64,36 @@ void FrameBuffer::DrawLine(int x0, int y0, int x1, int y1, uint32_t color)
 
 void FrameBuffer::DrawTriangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, uint32_t color)
 {
-	if (t0.y == t1.y && t0.y == t2.y) return;
-	// Sort the vertices by y-coordinate ascending (t0.y <= t1.y <= t2.y)
-	if (t0.y > t1.y) std::swap(t0, t1);
-	if (t1.y > t2.y) std::swap(t1, t2);
-	if (t0.y > t1.y) std::swap(t0, t1);
+	
+	int min_X = std::min({ t0.x, t1.x, t2.x });
+	int max_X = std::max({ t0.x, t1.x, t2.x });
+	int min_Y = std::min({ t0.y, t1.y, t2.y });
+	int max_Y = std::max({ t0.y, t1.y, t2.y });
 
-	int total_height = t2.y - t0.y;
-	if (total_height == 0) return; // Prevent division by zero
+	min_X = std::max(0, min_X);
+	max_X = std::min(m_width - 1, max_X);
+	min_Y = std::max(0, min_Y);
+	max_Y = std::min(m_height - 1, max_Y);
 
-	// We will iterate through each horizontal line of the triangle, calculating the intersection points with the triangle edges and filling in the pixels between those points.
-	for (int i = 0; i < total_height; i++)
-	{
-		// Determine if we are in the upper or lower part of the triangle
-		bool second_half = i > t1.y - t0.y || t1.y == t0.y;
-		// Calculate the height of the current segment (upper or lower)
-		int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
-		// Calculate the interpolation factors for the current y level
-		float alpha = (float)i / total_height;
-		float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height; // be careful: with above conditions no division by zero here
-		// Interpolate the x-coordinates of the triangle edges
-		int ax =				t0.x + (t2.x - t0.x) * alpha;
-		int bx = second_half ? t1.x + (t2.x - t1.x) * beta : t0.x + (t1.x - t0.x) * beta;
-		// Ensure ax is the leftmost point and bx is the rightmost point
-		if (ax > bx) std::swap(ax, bx);
-		// We are drawing a horizontal line from ax to bx at the current y level (t0.y + i)
-		for (int x = ax; x <= bx; x++)
-		{
-			setPixel(x, t0.y + i, color);
+	for (int y = min_Y; y <= max_Y; y++) {
+		for (int x = min_X; x <= max_X; x++) {
+			// Check if the point (x, y) is inside the triangle
+			// Implementation for point-in-triangle check would go here
+			if (isPointInTriangle(Vector2<int>(x, y), t0, t1, t2)) {
+				setPixel(x, y, color);
+			}
 		}
 	}
+}
+
+
+bool FrameBuffer::isPointInTriangle(Vector2<int> p, Vector2<int> a, Vector2<int> b, Vector2<int> c) {
+	
+	int e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+	int e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
+	int e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
+
+	return (e0 < 0 && e1 < 0 && e2 < 0);
+
 }
 

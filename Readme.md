@@ -280,5 +280,157 @@ bool isPointInTriangle(Vector2<int> p, Vector2<int> a, Vector2<int> b, Vector2<i
 }
 ```
 **Test Result:**<br>
-![Screenshot-2026-06-24-191141.png](./Images/Screenshot/Triangles.png)
+![Triangles.png](./Images/Screenshot/Triangles.png)
 
+## Barycentric Coordinates
+When we Compute the three edge functions for a point P inside a triangle `v0, v1, v2`, we get three values: `e0, e1, e2`.
+
+Divide Each by total area of triangle **(Which is just `e0+e1+e2` for a CCW triangle and `-(e0+e1+e2)` for a CW Triangle):**
+```
+w0 = e0 / e0+e1+e2
+w1 = e1 / e0+e1+e2
+w2 = e2 / e0+e1+e2
+```
+These are called **barycentric coordinates**. They have one critical property:<br>
+`w0 + w1 + w2 = 1.0`  **always** <br>
+and each weight is between 0 and 1 for any point inside the triangle.
+
+**Why de we care?** Because these weight let us interpolate any values that lives at the vertices across the entire triangle surface. Color, Texture Coordinates, Normals, Depth anything.
+
+## Painter's Algorithm
+Now our rasterizer has no concept of depth. if we draw Triangle A and then Triangle B overlapping it, B wins not because B is closer to camera but because it was drawn last. This is called **Painters Algorithm.**
+
+The **Painter's Algorithm** has one fatal flaw: it breaks when triangles partially overlap or intersect each other. There is no Draw order that produces a correct image when two triangles cross through each other in 3D space.<br>
+The Z-Buffer Solves This Permanently.
+
+## Z-Buffer
+Run a second buffer along side our framebuffer. Same width, Same Height. One `float` per pixel instead of `uint32_t`.<br>
+This buffer stores **the depth of the closest fragment that has been written to each pixel so far.**
+
+Before writing anything, we ask: **"is what i am about to draw closer that what's already there?"**
+- if **Yes** — write the color update the depth
+- if **No** — discard, do nothing
+
+```
+for each pixel being rasterized:
+      if fragment.depth < zbuffer[p];
+        zbuffer[p] = fragment.depth;
+        framebuffer[p] = fragment.color;
+```
+
+### Initialization
+Our Z-buffer must be initialize before every frame. The question is: **with what value?**
+
+Think about it this way. We want every first fragment to win its first depth test because nothing has been drawn yet. So you initialize every slot to the furthest possible depth the value that any real fragment will beat.<br>
+if closer = smaller depth value:
+```
+std::fill(m_zbuffer.begin(),m_zbuffer.end(),std::numeric_limits<float>::max());
+```
+Every fragment depth will be less than max so the first fragment to touch any pixel will win. Subsequent fragment only wins if they are closer.
+
+>If we initialize to zero and closer means smaller — no fragment will ever pass the test because no depth is less than zero(assuming positive depths). Everything gets discarded. Black screen. This the most common bug in Z-Buffer.
+
+### Where Does Z value Come From?
+We have 3 vertices each has Z value. We have a pixel p inside a triangle. What's the depth at p?
+
+We Interpolate it from the vertex depth using [**Barycentric Coordinates**](#Barycentric-Coordinates):
+```
+depth_at_P = w0 * z0 + w1 * z1 + w2 * z2
+```
+Where `w0`, `w1`and `w2` are barycentric weights you compute from the edge functions.
+
+### The Degenerate Triangle Problem
+**So, here is the a Question what will be the area of a triangle whose all three vertices are collinear(on the same line)?** <br>
+
+`Zero`
+
+and you will be dividing by zero when calculating the barycentric coordinates.
+
+
+```
+
+struct BarycentricResults
+{
+	float w0, w1, w2;
+	bool isInside = true;
+	float depth;
+};
+
+void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color)
+{
+	
+	int min_X = (int)std::floor(std::min({ t0.x, t1.x, t2.x }));
+	int max_X = (int)std::ceil(std::max({ t0.x, t1.x, t2.x }));
+	int min_Y = (int)std::floor(std::min({ t0.y, t1.y, t2.y }));
+	int max_Y = (int)std::ceil(std::max({ t0.y, t1.y, t2.y }));
+
+	min_X = std::max(0, min_X);
+	max_X = std::min(m_width - 1, max_X);
+	min_Y = std::max(0, min_Y);
+	max_Y = std::min(m_height - 1, max_Y);
+
+	for (int y = min_Y; y <= max_Y; y++) {
+		for (int x = min_X; x <= max_X; x++) {
+			// Check if the point (x, y) is inside the triangle
+			// Implementation for point-in-triangle check would go here
+			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), t0, t1, t2);
+
+			if (bary.isInside) {
+				if (IsUsingZBuffer) {
+					// Perform Z-buffering check
+					int bufferIndex = y * m_width + x;
+					if (bary.depth < m_zbuffer[bufferIndex]) {
+						m_zbuffer[bufferIndex] = bary.depth;
+						setPixel(x, y, color);
+					}
+				} else {
+					setPixel(x, y, color);
+				}
+				
+			}
+		}
+	}
+}
+
+
+
+BarycentricResults FrameBuffer::computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
+	BarycentricResults bary;
+	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
+	float e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
+	
+	if (e0 > 0 || e1 > 0 || e2 > 0) {
+		bary.isInside = false;
+		bary.w0 = -1.0f;
+		bary.w1 = -1.0f;
+		bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
+
+	float total_area = e0 + e1 + e2;
+
+	// Safety Check: If the triangle is flat or a straight line, skip computation
+	if (std::abs(total_area) < 1e-6f) {
+		bary.isInside = false;
+		bary.w0 = -1.0f;
+		bary.w1 = -1.0f;
+		bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
+
+	float w0 = static_cast<float>(e0) / total_area;
+	float w1 = static_cast<float>(e1) / total_area;
+	float w2 = static_cast<float>(e2) / total_area;
+
+	bary.w0 = w0;
+	bary.w1 = w1;
+	bary.w2 = w2;
+
+	bary.depth = w0 * a.z + w1 * b.z + w2 * c.z;
+
+	return bary;
+}
+```

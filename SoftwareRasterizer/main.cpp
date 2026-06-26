@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <vector>
+#include "math/Vector3.h"
 #include <cstdint>
 #include "FrameBuffer.h"
 
@@ -19,6 +20,7 @@ int main(int argc, char* argv[])
 
     // Your CPU-side framebuffer — this is what you'll draw into
 	FrameBuffer framebuffer(WIDTH, HEIGHT);
+	framebuffer.SetUsingZBuffer(true);
 
     bool running = true;
     SDL_Event event;
@@ -30,18 +32,20 @@ int main(int argc, char* argv[])
 
 		framebuffer.clearbuffer();
 
-        // 1. Large Red Outer Triangle
-        framebuffer.DrawTriangle(Vector2<int>(400, 69), Vector2<int>(200, 415), Vector2<int>(600, 415), 0xFFFF0000);
+        
 
         // 2. Top-Center Green Inner Triangle
-        framebuffer.DrawTriangle(Vector2<int>(400, 69), Vector2<int>(300, 242), Vector2<int>(500, 242), 0xFF00FF00);
+        framebuffer.DrawTriangle(Vector3<float>(400, 69, 0), Vector3<float>(300, 242, 0), Vector3<float>(500, 242, 0), 0xFF00FF00);
 
         // 3. Bottom-Left Blue Inner Triangle
-        framebuffer.DrawTriangle(Vector2<int>(300, 242), Vector2<int>(200, 415), Vector2<int>(400, 415), 0xFF0000FF);
+        framebuffer.DrawTriangle(Vector3<float>(300, 242, 0), Vector3<float>(200, 415, 0), Vector3<float>(400, 415, 0), 0xFF0000FF);
 
         // 4. Bottom-Right Yellow Inner Triangle
-        framebuffer.DrawTriangle(Vector2<int>(500, 242), Vector2<int>(400, 415), Vector2<int>(600, 415), 0xFFFFFF00);
-
+        framebuffer.DrawTriangle(Vector3<float>(500, 242, 0), Vector3<float>(400, 415, 0), Vector3<float>(600, 415, 0), 0xFFFFFF00);
+        
+        
+        // 1. Large Red Outer Triangle
+        framebuffer.DrawTriangle(Vector3<float>(400, 69, 10), Vector3<float>(200, 415, 10), Vector3<float>(600, 415, 10), 0xFFFF0000);
 
         
         // Blit framebuffer to screen

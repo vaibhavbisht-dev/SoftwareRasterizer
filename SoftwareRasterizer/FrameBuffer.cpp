@@ -2,7 +2,7 @@
 
 
 FrameBuffer::FrameBuffer(int width, int height)
-	: m_width(width), m_height(height), m_buffer(width* height, 0xFF000000)
+	: m_width(width), m_height(height), m_buffer(width* height, 0xFF000000), m_zbuffer(width * height, std::numeric_limits<float>::max())
 {}
 
 FrameBuffer::~FrameBuffer()
@@ -11,6 +11,9 @@ FrameBuffer::~FrameBuffer()
 
 void FrameBuffer::clearbuffer()
 {
+	if (IsUsingZBuffer) {
+		std::fill(m_zbuffer.begin(), m_zbuffer.end(), std::numeric_limits<float>::max());
+	}
 	std::fill(m_buffer.begin(), m_buffer.end(), 0xFF000000);
 }
 
@@ -62,13 +65,13 @@ void FrameBuffer::DrawLine(int x0, int y0, int x1, int y1, uint32_t color)
 	}
 }
 
-void FrameBuffer::DrawTriangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, uint32_t color)
+void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color)
 {
 	
-	int min_X = std::min({ t0.x, t1.x, t2.x });
-	int max_X = std::max({ t0.x, t1.x, t2.x });
-	int min_Y = std::min({ t0.y, t1.y, t2.y });
-	int max_Y = std::max({ t0.y, t1.y, t2.y });
+	int min_X = (int)std::floor(std::min({ t0.x, t1.x, t2.x }));
+	int max_X = (int)std::ceil(std::max({ t0.x, t1.x, t2.x }));
+	int min_Y = (int)std::floor(std::min({ t0.y, t1.y, t2.y }));
+	int max_Y = (int)std::ceil(std::max({ t0.y, t1.y, t2.y }));
 
 	min_X = std::max(0, min_X);
 	max_X = std::min(m_width - 1, max_X);
@@ -79,21 +82,64 @@ void FrameBuffer::DrawTriangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2
 		for (int x = min_X; x <= max_X; x++) {
 			// Check if the point (x, y) is inside the triangle
 			// Implementation for point-in-triangle check would go here
-			if (isPointInTriangle(Vector2<int>(x, y), t0, t1, t2)) {
-				setPixel(x, y, color);
+			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), t0, t1, t2);
+
+			if (bary.isInside) {
+				if (IsUsingZBuffer) {
+					// Perform Z-buffering check
+					int bufferIndex = y * m_width + x;
+					if (bary.depth < m_zbuffer[bufferIndex]) {
+						m_zbuffer[bufferIndex] = bary.depth;
+						setPixel(x, y, color);
+					}
+				} else {
+					setPixel(x, y, color);
+				}
+				
 			}
 		}
 	}
 }
 
 
-bool FrameBuffer::isPointInTriangle(Vector2<int> p, Vector2<int> a, Vector2<int> b, Vector2<int> c) {
+
+BarycentricResults FrameBuffer::computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
+	BarycentricResults bary;
+	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
+	float e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
 	
-	int e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-	int e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
-	int e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
+	if (e0 > 0 || e1 > 0 || e2 > 0) {
+		bary.isInside = false;
+		bary.w0 = -1.0f;
+		bary.w1 = -1.0f;
+		bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
 
-	return (e0 < 0 && e1 < 0 && e2 < 0);
+	float total_area = e0 + e1 + e2;
 
+	// Safety Check: If the triangle is flat or a straight line, skip computation
+	if (std::abs(total_area) < 1e-6f) {
+		bary.isInside = false;
+		bary.w0 = -1.0f;
+		bary.w1 = -1.0f;
+		bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
+
+	float w0 = static_cast<float>(e0) / total_area;
+	float w1 = static_cast<float>(e1) / total_area;
+	float w2 = static_cast<float>(e2) / total_area;
+
+	bary.w0 = w0;
+	bary.w1 = w1;
+	bary.w2 = w2;
+
+	bary.depth = w0 * a.z + w1 * b.z + w2 * c.z;
+
+	return bary;
 }
 

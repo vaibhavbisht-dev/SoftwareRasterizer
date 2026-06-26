@@ -356,7 +356,7 @@ struct BarycentricResults
 	float depth;
 };
 
-void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color)
+void DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color)
 {
 	
 	int min_X = (int)std::floor(std::min({ t0.x, t1.x, t2.x }));
@@ -394,7 +394,7 @@ void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<flo
 
 
 
-BarycentricResults FrameBuffer::computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
+BarycentricResults computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
 	BarycentricResults bary;
 	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
 	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);

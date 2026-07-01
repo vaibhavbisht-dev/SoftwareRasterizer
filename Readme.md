@@ -628,3 +628,6 @@ interpolated_inv_z = w0 * (1/z0) + w1 * (1/z1) + w2 * (1/z2)
 actual_depth = 1 / interpolated_inv_z
 ```
 
+**Test Result:**<br>
+![Triangles.png](./Images/Screenshot/Cube.png)
+

@@ -89,8 +89,8 @@ int main(int argc, char* argv[])
         framebuffer.clearbuffer();
 
         // 5a. Increment rotation angle (rotating around X and Y axes)
-        Degree.x += 1.0f * deltaTime; // 1 radian per second roughly
-        Degree.y += 1.5f * deltaTime;
+        Degree.x += 25.0f * deltaTime; // 1 radian per second roughly
+        Degree.y += 25.5f * deltaTime;
 
         // 5b. Call CreateModelMatrix (Center it at origin)
         framebuffer.CreateModelMatrix(Vector3<float>(0, 0, 0), Degree, Vector3<float>(1, 1, 1));

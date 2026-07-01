@@ -434,3 +434,197 @@ BarycentricResults computeBarycentricCoordinates(Vector3<float> p, Vector3<float
 	return bary;
 }
 ```
+
+## Vertex Transform Pipeline
+
+### The Problem
+Every pixel we've passed to `DrawTriangle` till now was in screen space (literal pixels coordinates). We typed `(400, 69)` and it drew at pixel 400, 69.
+
+That's not 3D that's manual pixel placement.
+
+Real 3D Works Differently. A vertex starts life in object space, coordinates relative to object's own center. A Cube vertex might be at `(0.5, 0.5, -0.5).` It has no Idea where on screen it will end up. The pipeline figures that out.
+
+The pipeline is a chain of matrix multiplications. Each one moves the vertex from one coordinate space to the next. Each one moves the vertex from the coordinate space to the next.
+
+### The Coordinate Spaces
+#### Object Space (Local Space)
+Its is the space where the artist define the mesh. The Center of the cube is at `(0.0f, 0.0f, 0.0f)`. A Corner is at `(0.5f, 0.5f, 0.5f)`. Everything is relative to object's own origin. No concept Where the object sits in the world.
+
+#### World Space
+It is the space where objects live relative to each other. We place the cube in the world by applying a **Model Matrix** (Some Combination of Translation, Rotation and Scale). After this that corner might become `(5.5f, 2.5f, 3.0f)` in the world.
+
+#### Camera Space (View Space)
+The World repositioned so the camera is at origin looking down the -Z axis. This is applied by the view matrix. In this nothing moves relative to anything else as it is just a change of reference frame. If the Camera moves right, in Camera space the world moves left.
+
+#### Clip Space
+The Camera's View frustrum (a truncated Pyramid) warp into a standard axis aligned cube. This is applied by Projection Matrix. After this transform, everything visible is between -1 and 1 on X and Y. This is also where perspective happens(The math that makes far things look smaller).
+
+#### Screen Space (Viewport Space)
+This is where Clip Space is mapped to actual pixel coordinates. X goes from -1→1 to 0→Width an Y goes from -1→1 to 0→Height. This is what enters our Draw Triangle function.
+
+### Homogeneous Coordinates (4D Vectors)
+Matrix in 3D Graphic are 4x4 not 3x3, and vertices become 4-componenet vectors `x, y, z, w`.
+
+**But Why?**
+> Because Translation (movement of Object(up, down, left, right) in 3D space) cannot be represented as 3x3 matrix multiplication. Rotation and Scale can but Translation requires Addition not Multiplication.
+
+**Solution:** Add a fourth component `w`. For regular point `w = 1`. For a direction(like a normal vector) `w = 0`.
+
+With `w = 1` a 4x4 matrix can encode translation, rotation, scale, And Perspective all in one multiplication. This is why 4x4 Matrix dominates graphics. 
+> When `w = 0` the vector is a direction. Translation has no effect on directions (We cannot translate a direction). When `w = 1` The vector is a point. Translation affect normally.
+
+### The Model Matrix
+Move a vector from object space → World Space.<br>
+**Three Components are:**
+- **Translation:** Moves object's origin to a Position in the World.
+- **Rotation:** orients the object.
+- **Scale:** makes the object bigger or smaller.
+
+**Correct order of Multiplication:**
+```
+Model = Translation * Rotation * Scale
+```
+```
+void CreateModelMatrix(Vector3<float> translation, Vector3<float> rotation, Vector3<float> scale) {
+	Matrix4 translationMatrix = Matrix4::Translation(translation.x, translation.y, translation.z);
+	Matrix4 rotationXMatrix = Matrix4::RotationX(rotation.x);
+	Matrix4 rotationYMatrix = Matrix4::RotationY(rotation.y);
+	Matrix4 rotationZMatrix = Matrix4::RotationZ(rotation.z);
+	Matrix4 scaleMatrix = Matrix4::Scaling(scale.x, scale.y, scale.z);
+
+	// Combine all 3 rotations into one total rotation matrix (Z * Y * X)
+	Matrix4 rotationMatrix = rotationZMatrix * rotationYMatrix * rotationXMatrix;
+
+	m_modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+}
+```
+
+>Order Matters because matrix multiplication is not commutative. Scale first then Rotate then Translate. If we translate first then scale then we will scale our translate also and the object will move to the wrong place.
+
+### The View Matrix
+The View Matrix transforms World Space → Camera Space.
+> if the camera is at position E looking at Target T With up Vector U, how do i rotate and translate the entire world so the camera ends up at origin looking down -Z?
+
+**The Look At Construction:**
+```
+forward = normalize(E - T)
+right = normalize(cross(U, forward))
+up = cross (forward, right)
+```
+**The Resulting Matrix is:**
+```
+|right.x       right.y      right.z      -dot(right, E)|
+|up.x          up.y         up.z         -dot(right, E)|
+|forward.x     forward.y    forward.z    -dot(right, E)|
+|0             0            0            1             |
+```
+
+**What This Does:** The Top Left 3x3 rotates the world so the camera's axis align with the world axis. The right camera Translate so that The camera ends up at the origin.
+
+```
+// This is My Matrix Library Function
+static Matrix4 LookAt(const Vector3<float>& eye, const Vector3<float>& center, const Vector3<float>& up) {
+    Vector3<float> f = (center - eye).normalized();
+    Vector3<float> s = Vector3<float>::Cross(f, up).normalized();
+    Vector3<float> u = Vector3<float>::Cross(s, f);
+
+    Matrix4 result;
+    // Construct inverse camera alignment orientation into rows
+    result(0, 0) = s.x;  result(0, 1) = s.y;  result(0, 2) = s.z;
+    result(1, 0) = u.x;  result(1, 1) = u.y;  result(1, 2) = u.z;
+    result(2, 0) = -f.x; result(2, 1) = -f.y; result(2, 2) = -f.z;
+
+    // Apply camera inverted target dot products directly to the translation column
+    result(0, 3) = -Vector3<float>::Dot(s, eye);
+    result(1, 3) = -Vector3<float>::Dot(u, eye);
+    result(2, 3) = Vector3<float>::Dot(f, eye);
+    return result;
+}
+
+void Print() const {
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            std::cout << (*this)(row, col) << "\t";
+        }
+        std::cout << "\n";
+    }
+}
+
+// Set View Matrix Function
+void SetViewMatrix(Vector3<float> eye, Vector3<float> center, Vector3<float> up) {
+	m_viewMatrix = Matrix4::LookAt(eye, center, up);
+}
+```
+### The Projection Matrix
+The projection matrix Transform Camera Space into Clip Space. It Encodes our camera's frustum The pyramid shaped volume of what the camera can see into a standard cube from -1 to 1 on all axis.
+
+**The four parameters it needs:**
+- **FOV (field of view):** The angle in radians of the vertical view angle. 60° is natural, 90° is wide-angle.
+- **Aspect Ratio:** width/height of our screen. This Prevents stretching.
+- **Near Plane:** closest distance the camera can render. Must be >0. Cannot be zero.
+- **Far Plane:** furthest distance rendered. Everything beyond is clipped.
+
+**The perspective projection matrix (OpenGL convention, Z maps to -1..1):**
+```
+| f/aspect   0    0              0          |
+| 0          f    0              0          |
+| 0          0    (far+near)/... -2*far*near/...|
+| 0          0   -1              0          |
+
+where f = 1 / tan(fov/2)
+```
+
+**What It Does?**
+- It scales X and Y by `f` (fov dependent Zoom)
+- It Adjusts X by aspect ratio.
+- It remaps the Z into -1 to 1 range.
+- It puts the original Z in to the W component
+
+```
+static Matrix4 Perspective(float fovRadians, float aspect, float nearPlane, float farPlane) {
+    Matrix4 result;
+    // Zero out structural diagonal properties first
+    for (int i = 0; i < 16; ++i) result.m[i] = 0.0f;
+
+    float tanHalfFov = std::tan(fovRadians / 2.0f);
+    result(0, 0) = 1.0f / (aspect * tanHalfFov);
+    result(1, 1) = 1.0f / tanHalfFov;
+    result(2, 2) = -(farPlane + nearPlane) / (farPlane - nearPlane);
+    result(2, 3) = -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane);
+    result(3, 2) = -1.0f;
+    return result;
+}
+
+void SetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane) {
+	m_projectionMatrix = Matrix4::Perspective(fov, aspectRatio, nearPlane, farPlane);
+}
+```
+
+### The Perspective Divide
+After multiplying by projection matrix, our vertex is in clip space`(x, y, z, w)`.<br>
+Now, We divide everything by `W`:
+```
+NDC.x = x / w
+NDC.y = y / w  
+NDC.z = z / w
+```
+This produces Normalized Device Coordinates(NDC) everything visible is between -1 and 1.
+
+### View Port Transformation 
+After the perspective divide we Have NDC Coordinates (-1 to 1). Now We have to map them to pixels:
+```
+screen.x = (NDC.x + 1) * 0.5 * WIDTH
+screen.y = (NDC.x + 1) * 0.5 * WIDTH
+```
+>**The Y Flip:** NDC Y = +1 is Top of the screen. Screen Y = 0 is top of the screen. They're opposite. the formula `1 - NDC.y` performs this flip. with out this every thing renders upside down.
+
+### Perspective-Correct Z Interpolation
+>After Perspective projection, Z is not linear in screen space. If we Z linearly across a triangle using barycentric coordinates, we get wrong depth at pixels far from the vertices especially visible on large triangles at oblique angles.
+
+**The correct approach:** interpolate `1/z` and invert it.<br>
+At each vertex, compute `1/z`. Interpolate those reciprocals using barycentric weights. Then at each pixel, invert to get actual depth:
+```
+interpolated_inv_z = w0 * (1/z0) + w1 * (1/z1) + w2 * (1/z2) 
+actual_depth = 1 / interpolated_inv_z
+```
+

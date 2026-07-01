@@ -15,6 +15,8 @@ void FrameBuffer::clearbuffer()
 		std::fill(m_zbuffer.begin(), m_zbuffer.end(), std::numeric_limits<float>::max());
 	}
 	std::fill(m_buffer.begin(), m_buffer.end(), 0xFF000000);
+	
+	
 }
 
 void FrameBuffer::setPixel(int x, int y, uint32_t color) {
@@ -143,3 +145,47 @@ BarycentricResults FrameBuffer::computeBarycentricCoordinates(Vector3<float> p, 
 	return bary;
 }
 
+void FrameBuffer::CreateModelMatrix(Vector3<float> translation, Vector3<float> rotation, Vector3<float> scale) {
+	Matrix4 translationMatrix = Matrix4::Translation(translation.x, translation.y, translation.z);
+	Matrix4 rotationXMatrix = Matrix4::RotationX(rotation.x);
+	Matrix4 rotationYMatrix = Matrix4::RotationY(rotation.y);
+	Matrix4 rotationZMatrix = Matrix4::RotationZ(rotation.z);
+	Matrix4 scaleMatrix = Matrix4::Scaling(scale.x, scale.y, scale.z);
+
+	// Combine all 3 rotations into one total rotation matrix (Z * Y * X)
+	Matrix4 rotationMatrix = rotationZMatrix * rotationYMatrix * rotationXMatrix;
+
+	m_modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+}
+
+
+void FrameBuffer::SetViewMatrix(Vector3<float> eye, Vector3<float> center, Vector3<float> up) {
+	m_viewMatrix = Matrix4::LookAt(eye, center, up);
+}
+
+void FrameBuffer::SetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane) {
+	m_projectionMatrix = Matrix4::Perspective(fov, aspectRatio, nearPlane, farPlane);
+}
+
+Vector3<float> FrameBuffer::TransformVertex(Vector3<float> vertex) {
+	Vector4<float> vertex4(vertex.x, vertex.y, vertex.z, 1.0f);
+	
+
+	vertex4 = m_mvpMatrix * vertex4;
+
+	Vector3<float> NDC = Vector3<float>(vertex4.x / vertex4.w, vertex4.y / vertex4.w, vertex4.z / vertex4.w);
+	
+	Vector3<float> screenVector = Vector3<float>(
+		(NDC.x + 1.0f) * 0.5f * m_width,
+		(1.0f - NDC.y) * 0.5f * m_height,
+		NDC.z
+	);
+
+	return screenVector;
+	
+}
+
+// using this function to compute the MVP matrix after setting model, view, and projection matrices
+void FrameBuffer::ComputeMVPMatrix() {
+	m_mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+}

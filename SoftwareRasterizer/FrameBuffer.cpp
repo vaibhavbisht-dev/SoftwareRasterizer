@@ -67,24 +67,30 @@ void FrameBuffer::DrawLine(int x0, int y0, int x1, int y1, uint32_t color)
 	}
 }
 
-void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color)
+void FrameBuffer::DrawTriangle(TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture)
 {
 	
-	int min_X = (int)std::floor(std::min({ t0.x, t1.x, t2.x }));
-	int max_X = (int)std::ceil(std::max({ t0.x, t1.x, t2.x }));
-	int min_Y = (int)std::floor(std::min({ t0.y, t1.y, t2.y }));
-	int max_Y = (int)std::ceil(std::max({ t0.y, t1.y, t2.y }));
+	int min_X = (int)std::floor(std::min({ v0.position.x, v1.position.x, v2.position.x }));
+	int max_X = (int)std::ceil(std::max({ v0.position.x, v1.position.x, v2.position.x }));
+	int min_Y = (int)std::floor(std::min({ v0.position.y, v1.position.y, v2.position.y }));
+	int max_Y = (int)std::ceil(std::max({ v0.position.y, v1.position.y, v2.position.y }));
 
 	min_X = std::max(0, min_X);
 	max_X = std::min(m_width - 1, max_X);
 	min_Y = std::max(0, min_Y);
 	max_Y = std::min(m_height - 1, max_Y);
 
+	uint8_t r, g, b;
+
 	for (int y = min_Y; y <= max_Y; y++) {
 		for (int x = min_X; x <= max_X; x++) {
 			// Check if the point (x, y) is inside the triangle
 			// Implementation for point-in-triangle check would go here
-			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), t0, t1, t2);
+			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), v0.position, v1.position, v2.position);
+
+			float interpoaltedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
+			Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpoaltedInvW;
+
 
 			if (bary.isInside) {
 				if (IsUsingZBuffer) {
@@ -92,10 +98,12 @@ void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<flo
 					int bufferIndex = y * m_width + x;
 					if (bary.depth < m_zbuffer[bufferIndex]) {
 						m_zbuffer[bufferIndex] = bary.depth;
-						setPixel(x, y, color);
+						texture.Sample(trueUV.x, trueUV.y, r, g, b);
+						setPixel(x, y, (0xFF << 24) | (r << 16) | (g << 8) | b);
 					}
 				} else {
-					setPixel(x, y, color);
+					texture.Sample(trueUV.x, trueUV.y, r, g, b);
+					setPixel(x, y, (0xFF << 24) | (r << 16) | (g << 8) | b);
 				}
 				
 			}
@@ -107,38 +115,34 @@ void FrameBuffer::DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<flo
 
 BarycentricResults FrameBuffer::computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
 	BarycentricResults bary;
-	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
-	float e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
-	
+	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); // edge(a,b) -> weight for c
+	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x); // edge(b,c) -> weight for a
+	float e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x); // edge(c,a) -> weight for b
+
 	if (e0 > 0 || e1 > 0 || e2 > 0) {
 		bary.isInside = false;
-		bary.w0 = -1.0f;
-		bary.w1 = -1.0f;
-		bary.w2 = -1.0f;
+		bary.w0 = bary.w1 = bary.w2 = -1.0f;
 		bary.depth = -1;
 		return bary;
 	}
 
 	float total_area = e0 + e1 + e2;
-
-	// Safety Check: If the triangle is flat or a straight line, skip computation
 	if (std::abs(total_area) < 1e-6f) {
 		bary.isInside = false;
-		bary.w0 = -1.0f;
-		bary.w1 = -1.0f;
-		bary.w2 = -1.0f;
+		bary.w0 = bary.w1 = bary.w2 = -1.0f;
 		bary.depth = -1;
 		return bary;
 	}
 
-	float w0 = static_cast<float>(e0) / total_area;
-	float w1 = static_cast<float>(e1) / total_area;
-	float w2 = static_cast<float>(e2) / total_area;
+	// Correct assignment: e1 -> a (w0), e2 -> b (w1), e0 -> c (w2)
+	float w0 = e1 / total_area;
+	float w1 = e2 / total_area;
+	float w2 = e0 / total_area;
 
 	bary.w0 = w0;
 	bary.w1 = w1;
 	bary.w2 = w2;
+	bary.isInside = true;
 
 	bary.depth = w0 * a.z + w1 * b.z + w2 * c.z;
 
@@ -167,8 +171,9 @@ void FrameBuffer::SetProjectionMatrix(float fov, float aspectRatio, float nearPl
 	m_projectionMatrix = Matrix4::Perspective(fov, aspectRatio, nearPlane, farPlane);
 }
 
-Vector3<float> FrameBuffer::TransformVertex(Vector3<float> vertex) {
-	Vector4<float> vertex4(vertex.x, vertex.y, vertex.z, 1.0f);
+TransformedVertex FrameBuffer::TransformVertex(Vertex vertex) {
+	TransformedVertex transformedVertex;
+	Vector4<float> vertex4(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
 	
 
 	vertex4 = m_mvpMatrix * vertex4;
@@ -181,7 +186,11 @@ Vector3<float> FrameBuffer::TransformVertex(Vector3<float> vertex) {
 		NDC.z
 	);
 
-	return screenVector;
+	transformedVertex.position = screenVector;
+	transformedVertex.uv = vertex.uv; // Use the UV coordinates from the input vertex
+	transformedVertex.invW = 1.0f / vertex4.w;
+
+	return transformedVertex;
 	
 }
 

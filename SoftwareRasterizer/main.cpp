@@ -5,6 +5,7 @@
 #include "math/Utility.h"
 #include <cstdint>
 #include "FrameBuffer.h"
+#include "helper/SoftwareTexture.h"
 
 // Helper structure to define our triangles
 struct Triangle {
@@ -29,33 +30,61 @@ int main(int argc, char* argv[])
     // CPU-side framebuffer
     FrameBuffer framebuffer(WIDTH, HEIGHT);
     framebuffer.SetUsingZBuffer(true);
+	//SoftwareTexture Mytexture("./assets/texture.png"); // Load your texture here
+	SoftwareTexture Mytexture("./assets/texture.jpg"); // Load your texture here
 
-    // 1. Define 8 cube vertices in object space (±0.5 on each axis)
-    std::vector<Vector3<float>> vertices = {
-        {-0.5f, -0.5f,  0.5f}, // 0: Front-bottom-left
-        { 0.5f, -0.5f,  0.5f}, // 1: Front-bottom-right
-        { 0.5f,  0.5f,  0.5f}, // 2: Front-top-right
-        {-0.5f,  0.5f,  0.5f}, // 3: Front-top-left
-        {-0.5f, -0.5f, -0.5f}, // 4: Back-bottom-left
-        { 0.5f, -0.5f, -0.5f}, // 5: Back-bottom-right
-        { 0.5f,  0.5f, -0.5f}, // 6: Back-top-right
-        {-0.5f,  0.5f, -0.5f}  // 7: Back-top-left
+    std::vector<Vertex> vertices = {
+        // --- Front Face (Z = 0.5f) ---
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 0
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 1
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 2
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 3
+
+        // --- Back Face (Z = -0.5f) ---
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 4
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 5
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 6
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}, // 7
+
+        // --- Top Face (Y = 0.5f) ---
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 8
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 9
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 10
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}, // 11
+
+        // --- Bottom Face (Y = -0.5f) ---
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 12
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 13
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 14
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 15
+
+        // --- Right Face (X = 0.5f) ---
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 16
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 17
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 18
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 19
+
+        // --- Left Face (X = -0.5f) ---
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 20
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 21
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 22
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}  // 23
     };
 
-    // 2. Define 12 triangles using CCW winding as seen from outside the cube
+    // 2. Updated 12 triangles using Counter-Clockwise (CCW) winding referencing the unique vertices
     std::vector<Triangle> triangles = {
-        // Front face (Red)
-        {0, 1, 2, 0xFFFF0000}, {0, 2, 3, 0xFFFF0000},
-        // Right face (Green)
-        {1, 5, 6, 0xFF00FF00}, {1, 6, 2, 0xFF00FF00},
-        // Back face (Blue)
-        {5, 4, 7, 0xFF0000FF}, {5, 7, 6, 0xFF0000FF},
-        // Left face (Yellow)
-        {4, 0, 3, 0xFFFFFF00}, {4, 3, 7, 0xFFFFFF00},
-        // Top face (Cyan)
-        {3, 2, 6, 0xFF00FFFF}, {3, 6, 7, 0xFF00FFFF},
-        // Bottom face (Magenta)
-        {4, 5, 1, 0xFFFF00FF}, {4, 1, 0, 0xFFFF00FF}
+        // Front face (Pure texture colors)
+        {0, 1, 2, 0xFFFFFFFF}, {0, 2, 3, 0xFFFFFFFF},
+        // Back face 
+        {4, 5, 6, 0xFFFFFFFF}, {4, 6, 7, 0xFFFFFFFF},
+        // Top face
+        {8, 9, 10, 0xFFFFFFFF}, {8, 10, 11, 0xFFFFFFFF},
+        // Bottom face
+        {12, 13, 14, 0xFFFFFFFF}, {12, 14, 15, 0xFFFFFFFF},
+        // Right face
+        {16, 17, 18, 0xFFFFFFFF}, {16, 18, 19, 0xFFFFFFFF},
+        // Left face
+        {20, 21, 22, 0xFFFFFFFF}, {20, 22, 23, 0xFFFFFFFF}
     };
 
     // 3. Set view once
@@ -67,7 +96,7 @@ int main(int argc, char* argv[])
     Vector3<float> Degree(0.0f, 0.0f, 0.0f);
 
     // Array to hold the transformed vertices for the current frame
-    std::vector<Vector3<float>> transformedVertices(8);
+    std::vector<TransformedVertex> transformedVertices(vertices.size());
 
     bool running = true;
     SDL_Event event;
@@ -109,7 +138,7 @@ int main(int argc, char* argv[])
                 transformedVertices[tri.v0],
                 transformedVertices[tri.v1],
                 transformedVertices[tri.v2],
-                tri.color
+                Mytexture
             );
         }
 

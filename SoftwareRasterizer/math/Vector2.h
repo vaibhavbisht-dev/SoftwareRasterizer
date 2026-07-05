@@ -22,6 +22,12 @@ struct Vector2
 	Vector2 operator*(T scaler) const {
 		return Vector2(x * scaler, y * scaler);
 	}
+	friend Vector2 operator*(T scaler, const Vector2& vec) {
+		return Vector2(vec.x * scaler, vec.y * scaler);
+	}
+	Vector2 operator*(const Vector2& other) const {
+		return Vector2(x * other.x, y * other.y);
+	}
 	Vector2 operator/(T scaler) const {
 		return Vector2(x / scaler, y / scaler);
 	}

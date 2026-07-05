@@ -631,3 +631,136 @@ actual_depth = 1 / interpolated_inv_z
 **Test Result:**<br>
 ![Triangles.png](./Images/Screenshot/Cube.png)
 
+**The Problem:**<br>
+Right now Every Triangle is one flat color. Real Surfaces have detail - wood grain, skin, Metal scratches stored as an image called a texture. Each vertex of a triangle carries a 2D coordinate into that image, called a UV coordinate (sometimes ST). U is horizontal(0 to 1), Vis vertical (0 to 1).<br>
+
+**The rasterizer's job:** for every pixel inside the triangle, figure out which UV coordinate it corresponds to, then look up the color at that UV in the texture image.<br>
+
+We already have the tool to do this Barycentric Coordinates. We just haven't used it for anything else than depth yet.
+## Perspective Correct Interpolation
+The obvious approach is to interpolate UV linearly using barycentric weights, same as we did for depth.
+```
+u_at_P = w0 * u0 + w1 * u1 + w2 * u2
+v_at_P = w0 * v0 + w1 * v1 + w2 * v2
+```
+**This is wrong**<br>
+
+We already have discussed that NDC.z (post-percepective-divide depth) is linear in screen space, so linear barycentric interpolation of it is correct. That's true but it's a special property of Z specifically after the divide.<br>
+UV Coordinates do no have this property. They are attributes attached to vertices in 3D space, and after perspective projection, straight lines in 3D do not map to straight lines attribute value across the 2D triangle. Attributes appear to change non - linearly across the screen even though they change linearly in 3D space along the triangle surface.<br>
+**Visual Symptom if we get Texture wrong:** texture on triangle viewed at a steep angle(like a floor stretching to the horizon) will look like they're "swimming" or wraping straight grout lines between tiles appear to bend, checkerboards look distorted near the horizon. This was a famous, unmistakable artifact in early 3D games(PS1 games are the classic example hence the "wobbly PS1 texture" look).
+
+**The Correct method:** before rasterizing, divide each vertex's UV (and also 1) by that vertex's original camera-space `w` (which equals camera-space Z for a perspective projection). Interpolate those divide quantities linearly using barycentric weights. Then at each pixel, divide back out.
+```
+// Per vertex, before rasterizing:
+u0_over_w = u0 . w0_vertex
+u0_over_w = u0 . w0_vertex
+one_over_w0 = 1.0f/w0_vertex
+// same for vertex 1 and 2
+
+// Pre pixel, using barycentric weights (w0, w1, w2 - the triangle weights, not to be confused with vertex w):
+interpolated_u_over_w = bary.w0 * u0_over_w + bary.w1 * u1_over_w + bary.w2 * u2_over_w;
+interpolated_v_over_w = bary.w0 * v0_over_w + bary.w1 * v1_over_w + bary.w2 * v2_over_w;
+interpolated_one_over_w = bary.w0 * one_over_w0 + bary.w1 * v1_over_w + bary.w2 * one_over_w2
+
+// Recover the true, perspective-correct UV:
+final_u = interpolated_u_over_w / interpolated_one_over_w
+final_v = interpolated_v_over_w / interpolated_one_over_w
+```
+
+### UV 
+Our current `TransformVertex` function returns only `Vector3<float>`(screen x, y , NDC.z). It throws away `w`.
+We need w preserved per vertex, all the way through to `DrawTriangle`, so it can be divided into the UV before interpolation.
+
+#### Data Flow:
+**Vertex Struct:** We need a proper Vertex Struct Now instead of a bare `Vector3<float>`
+```
+struct Vertex{
+  Vector3<float> position;
+  Vector2<float> uv;
+};
+```
+
+**Transform Struct:** After transform we need a struct that carries screen position, depth, UV and `1/w`;
+
+```
+struct TransformedVertex {
+  Vector3<float> screenPos;
+  Vector2<float> uv;
+  float invW;
+}
+```
+
+### Texture Sampling
+Once we have a `(u, v)` in the 0-to-1 range at a pixel, we need to fetch a color from the texture image.<br>
+**Step 1- Convert UV(0-to-1) to Textile Coordinates**
+```
+texel_x = (int) (u * textureWidth)
+texel_y = (int) (v * textureHeight)
+```
+**Step 2- Clamp** so we don't read out of bounds (u, v can slightly exceed 0-1 due to floating point)
+```
+texel_x = clamp(texel_x, 0 , textureWidth - 1)
+texel_y = clamp(texel_y, 0 , textureHeight - 1)
+```
+**Step 3- Fetch the pixel** From the loaded Texture datat `(texel_x, texel_y)`, same indexing scheme as out framebuffer: `index = texel_y * textureWidth + texel_x`.
+
+This is called **Nearest Neighbor Sampling** we jus round to the closest texel. It's Blocky when near
+
+
+### Loading the Image
+we will use `stb_image.h` to load the Image:
+```
+ImagePtr GetImageData(const char* filename, int& width, int& height, int& channels)
+{
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, 0);
+
+    if (!data)
+    {
+        throw std::runtime_error("Failed to load image: " + std::string(filename));
+    }
+
+    return ImagePtr(data, [](void* p) { stbi_image_free(p); });
+}
+```
+### Fix:
+```
+BarycentricResults computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c) {
+	BarycentricResults bary;
+	float e0 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); // edge(a,b) -> weight for c
+	float e1 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x); // edge(b,c) -> weight for a
+	float e2 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x); // edge(c,a) -> weight for b
+
+	if (e0 > 0 || e1 > 0 || e2 > 0) {
+		bary.isInside = false;
+		bary.w0 = bary.w1 = bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
+
+	float total_area = e0 + e1 + e2;
+	if (std::abs(total_area) < 1e-6f) {
+		bary.isInside = false;
+		bary.w0 = bary.w1 = bary.w2 = -1.0f;
+		bary.depth = -1;
+		return bary;
+	}
+
+	// Correct assignment: e1 -> a (w0), e2 -> b (w1), e0 -> c (w2)
+	float w0 = e1 / total_area;
+	float w1 = e2 / total_area;
+	float w2 = e0 / total_area;
+
+	bary.w0 = w0;
+	bary.w1 = w1;
+	bary.w2 = w2;
+	bary.isInside = true;
+
+	bary.depth = w0 * a.z + w1 * b.z + w2 * c.z;
+
+	return bary;
+}
+```
+
+**Test Result:**<br>
+![Triangles.png](./Images/Screenshot/textureRender.png)

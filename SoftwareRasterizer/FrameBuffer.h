@@ -7,6 +7,7 @@
 #include "math/Matrix4.h"
 #include <cstdint>
 #include <algorithm>
+#include "helper/SoftwareTexture.h"
 
 
 struct BarycentricResults
@@ -15,6 +16,18 @@ struct BarycentricResults
 	bool isInside = true;
 	float depth;
 };
+struct Vertex
+{
+	Vector3<float> position;
+	Vector2<float> uv;
+
+};
+struct TransformedVertex
+{
+	Vector3<float> position;
+	Vector2<float> uv;
+	float invW;
+};
 
 class FrameBuffer
 {
@@ -22,11 +35,12 @@ public:
 	FrameBuffer(int width, int height);
 	~FrameBuffer();
 
+
 	void clearbuffer();
 	void setPixel(int x, int y, uint32_t color);
 
 	void DrawLine(int x0, int y0, int x1, int y1, uint32_t color);
-	void DrawTriangle(Vector3<float> t0, Vector3<float> t1, Vector3<float> t2, uint32_t color);
+	void DrawTriangle(TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture);
 
 
 	std::vector<uint32_t>& getBuffer() { return m_buffer; }
@@ -36,7 +50,7 @@ public:
 	void CreateModelMatrix(Vector3<float> translation, Vector3<float> rotation, Vector3<float> scale);
 	void SetViewMatrix(Vector3<float> eye, Vector3<float> center, Vector3<float> up);
 	void SetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane);
-	Vector3<float> TransformVertex(Vector3<float> vertex);
+	TransformedVertex TransformVertex(Vertex vertex);
 	
 	void ComputeMVPMatrix();
 

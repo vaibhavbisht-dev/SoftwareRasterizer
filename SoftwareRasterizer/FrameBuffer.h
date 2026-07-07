@@ -20,12 +20,15 @@ struct Vertex
 {
 	Vector3<float> position;
 	Vector2<float> uv;
+	Vector3<float> normal;
 
 };
 struct TransformedVertex
 {
 	Vector3<float> position;
 	Vector2<float> uv;
+	Vector3<float> worldPos;
+	Vector3<float> normal;
 	float invW;
 };
 
@@ -51,8 +54,20 @@ public:
 	void SetViewMatrix(Vector3<float> eye, Vector3<float> center, Vector3<float> up);
 	void SetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane);
 	TransformedVertex TransformVertex(Vertex vertex);
-	
+	void SetLightSource(Vector3<float> lightSource) { m_lightSource = lightSource; }
+	void SetCameraPosition(Vector3<float> cameraPosition) { m_camPOS = cameraPosition; }
+	float ComputeLightIntensity(Vector3<float> worldPos, Vector3<float> normal);
 	void ComputeMVPMatrix();
+
+	void SetIntensities(float ambient, float diffuse, float specular) {
+		m_ambientIntensity = ambient;
+		m_diffuseIntensity = diffuse;
+		m_specularIntensity = specular;
+	}
+	float GetAmbientIntensity() const { return m_ambientIntensity; }
+	float GetDiffuseIntensity() const { return m_diffuseIntensity; }
+	float GetSpecularIntensity() const { return m_specularIntensity; }
+	
 
 
 private:
@@ -62,7 +77,11 @@ private:
 	std::vector<float> m_zbuffer;
 	BarycentricResults computeBarycentricCoordinates(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c);
 
-
+	Vector3<float> m_lightSource;
+	Vector3<float> m_camPOS;
+	float m_ambientIntensity = 0.1f;
+	float m_diffuseIntensity = 0.8f;
+	float m_specularIntensity = 0.5f;
 
 
 	bool IsUsingZBuffer = false; // Flag to indicate whether to use Z-buffering or not

@@ -22,6 +22,9 @@ struct Vector3
 	Vector3 operator*(T scaler) const {
 		return Vector3(x * scaler, y * scaler, z * scaler);
 	}
+	friend Vector3 operator*(T scaler, const Vector3& vec) {
+		return Vector3(vec.x * scaler, vec.y * scaler, vec.z * scaler);
+	}
 	Vector3 operator/(T scaler) const {
 		return Vector3(x / scaler, y / scaler, z / scaler);
 	}

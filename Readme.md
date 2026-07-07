@@ -764,3 +764,223 @@ BarycentricResults computeBarycentricCoordinates(Vector3<float> p, Vector3<float
 
 **Test Result:**<br>
 ![Triangles.png](./Images/Screenshot/textureRender.png)
+
+## Phong Lighting
+
+**The Problem:**
+Right now our cube is lit by nothing. Every pixel gets whatever color the Texture sample gives it, full brightness regardless of surface orientation to any light. A face pointed directly at the light and a face pointed away from it looks identical. That's why a textured cube still looks flat.
+Lighting is what makes a sphere look like a sphere instead of a circle.
+
+### What a Normal Vector is and Why do we need it?
+a normal vector is a vector perpendicular to a surface, pointing outwards. It answers the question:<br>
+"which direction does the surface face?"
+
+Lighting calculates are fundamentally about the relationship between three directions at a point on a surface:
+- The normal (which way the surface is facing)
+- The light direction (from which direction the light is coming)
+- The view direction (from which direction the camera is looking)
+
+**Where do we get the Normal Vector?** For a flat face like our cube, the normal is the same for every point on that face,
+perpendicular to the face. For real meshes, each vertex store its own normal (usually average from surrounding faces so lighting
+looks smooth rather than faceted), and we interpolate it across the triangle using barycentric coordinates, just like we do for depth and UV.
+
+### The Dot Product 
+```
+Dot(A, B) = |A| * |B| * cos(θ) 
+where θ is the angle between A and B
+```
+
+if both vectors are unit length (normalized), this simplifies to just cos(angle between them).<br>
+**What this number tells us:**<br>
+- **1.0:** the two vectors point in exactly the same direction (angle = 0°)
+- **0.0:** the two vectors are perpendicular (angle = 90°)
+- **-1.0:** the two vectors point in exactly opposite directions (angle = 180°)
+
+This Single number (cosine) is the mathematical foundattion for how much light a surface receives. Surfaces facing the light directly gets more light.
+surface at a glance angle gets less light. Surfaces facing away from the light get no light.
+
+### The Phong Lighting Model
+**Component 1: Ambient**<br>
+A flat, constant amount of light applied everywhere, regardless of surface orientation. This exists to fake indirect bounce lighting (in reality light bounces of walls, floors, and other objects and reach surfaces
+directly lit.). Real time rendering(especilly without raytracing) usually cannot stimulate that bounce, so ambient is cheap approximation: a small constant added so nothing is ever pure black.
+```
+ambient = ambient_strength * light_color
+```
+`ambientStrength` is typically a small number like (0.1f). Too much ambient and nothing looks like shadow at all.
+Too little and everything looks like a black silhouette.
+
+**Component 2: Diffuse**<br>
+This is the main lighting term. This is what makes a surface look bright when facing the light and dark when facing away. This is calculated using the dot product of the surface normal and the light direction.
+
+```
+diffuse_factor = max(0.0f, dot(normal, light_direction))
+diffuse = diffuse_factor * light_color
+```
+
+The `max(0, ...)` clamps matters (if the dot product is negative, the light is behind the surface, and it should not contribute any light).
+The diffuse factor is a number between 0 and 1 that scales the light color.
+
+`lightDir` here is the normalized vector pointing form the surface point towards the light, not the other way around.
+getting this direction backwards is a common bug that makes lighting look inverted.
+
+**Component 3: Specular**<br>
+This is the shiny highlight, the bright spot we see on a polished surface. Unlike Diffuse which is based on the angle between the light and the surface, Specular is based on the angle between the reflected light direction and the view direction (the direction from which we are looking at the surface).
+Because a lighlight is a reflection of light source and reflection depend upon viewing angle.
+
+**The classic Phong Specular formula:**
+```
+reflectDir = reflect(-lightDir, normal)
+specFactor = pow(max(0, dot(reflectDir, viewDir)), shininess)
+specular = specularStrength * specFactor * lightColor
+```
+
+`viewDir` is the normalized vector from the surface pointing towards the camera.
+`reflectDir` is the light direction reflected around the normal(physically, the direction the light would bounce off a mirror-like surface).
+`shininess` controls how tight or spread out the specular highlight is (a high value `128+` gives a small, sharp highlight like rubber or plastic).
+```
+final_pixel_color = (ambient + diffuse + specular) * texture_color
+```
+
+## Gouraud Shading vs Phong Shading
+
+**Gouraud Shading:** calculates the lighting at each vertex and interpolates the colors across the triangle. This results in a smooth appearance but can lead to unrealistic highlights and shadows.
+- **Fast:** three light calculations per triangle instead of per pixel.
+- **Problems:** can result in unrealistic highlights and shadows due to interpolation.
+
+**Phong Shading:** calculates the lighting at each pixel, providing more accurate results with realistic highlights and shadows. However, it is computationally more expensive than Gouraud Shading.
+- **Slow:** requires more computational resources and time to calculate lighting for each pixel.
+- **Better Quality:** provides more accurate results with realistic highlights and shadows.
+
+### My implementation of Phong Shading (using Blinn-Phong)
+I am using Blinn-Phong shading model which is a modification of the original Phong shading model. It uses the halfway vector between the light direction and the view direction to calculate the specular reflection, which is more efficient and produces similar results.
+```
+Vector3<float> H = (L + viewDir).normalized(); // Halfway vector
+float specular_factor = std::pow(std::max(0.0f, Vector3<float>::Dot(N, H)), 32.0f);
+```
+
+> We also need to interpolate the normals and world positions across the triangle using barycentric coordinates, just like we do for depth and UV. This allows us to calculate the lighting at each pixel based on the interpolated normal and position.
+```
+interpolated_normal = (w0*n0*invW0 + w1*n1*invW1 + w2*n2*invW2) / interpolated_invW
+```
+
+```
+TransformedVertex TransformVertex(Vertex vertex) {
+	TransformedVertex transformedVertex;
+	Vector4<float> vertex4(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
+	
+	Vector4<float> tempWorldPos = m_modelMatrix * vertex4;
+	transformedVertex.worldPos.x = tempWorldPos.x;
+	transformedVertex.worldPos.y = tempWorldPos.y;
+	transformedVertex.worldPos.z = tempWorldPos.z;
+
+	vertex4 = m_mvpMatrix * vertex4;
+
+	Vector3<float> NDC = Vector3<float>(vertex4.x / vertex4.w, vertex4.y / vertex4.w, vertex4.z / vertex4.w);
+	
+	Vector3<float> screenVector = Vector3<float>(
+		(NDC.x + 1.0f) * 0.5f * m_width,
+		(1.0f - NDC.y) * 0.5f * m_height,
+		NDC.z
+	);
+
+	transformedVertex.position = screenVector;
+	transformedVertex.uv = vertex.uv; // Use the UV coordinates from the input vertex
+	transformedVertex.invW = 1.0f / vertex4.w;
+
+	// Transform the normal using the model matrix (ignoring translation)
+	Vector4<float> normal4(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f);
+	Vector4<float> tempNormal = m_modelMatrix * normal4;
+	transformedVertex.normal = Vector3<float>(tempNormal.x, tempNormal.y, tempNormal.z).normalized();
+
+	return transformedVertex;
+	
+}
+
+
+float ComputeLightIntensity(Vector3<float> worldPos, Vector3<float> normal) {
+	
+	// 1. Normalize input vectors
+	Vector3<float> N = normal.normalized();
+
+	// 2. Compute light direction vector (L)
+	Vector3<float> L = (m_lightSource - worldPos).normalized();
+
+	// 3. Calculate Diffuse component (Lambert's Cosine Law)
+	float diffuse_factor = std::max(0.0f, Vector3<float>::Dot(N, L));
+	float diffuse = m_diffuseIntensity * diffuse_factor;
+
+	// 4. Calculate Specular component using True Blinn-Phong
+	Vector3<float> viewDir = (m_camPOS - worldPos).normalized(); // Use the set camera position
+	Vector3<float> H = (L + viewDir).normalized(); // Halfway vector
+
+	float specular_factor = std::pow(std::max(0.0f, Vector3<float>::Dot(N, H)), 32.0f); // Shininess = 32
+	float specular = m_specularIntensity * specular_factor;
+
+	// 5. Combine components
+	return m_ambientIntensity + diffuse + specular;
+
+	
+}
+
+
+void DrawTriangle(TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture)
+{
+	
+	int min_X = (int)std::floor(std::min({ v0.position.x, v1.position.x, v2.position.x }));
+	int max_X = (int)std::ceil(std::max({ v0.position.x, v1.position.x, v2.position.x }));
+	int min_Y = (int)std::floor(std::min({ v0.position.y, v1.position.y, v2.position.y }));
+	int max_Y = (int)std::ceil(std::max({ v0.position.y, v1.position.y, v2.position.y }));
+
+	min_X = std::max(0, min_X);
+	max_X = std::min(m_width - 1, max_X);
+	min_Y = std::max(0, min_Y);
+	max_Y = std::min(m_height - 1, max_Y);
+
+	uint8_t r, g, b;
+
+	for (int y = min_Y; y <= max_Y; y++) {
+		for (int x = min_X; x <= max_X; x++) {
+			// Check if the point (x, y) is inside the triangle
+			// Implementation for point-in-triangle check would go here
+			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), v0.position, v1.position, v2.position);
+
+			float interpolatedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
+			Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpolatedInvW;
+
+			Vector3<float> interpolated_Normal = (bary.w0 * v0.normal * v0.invW + bary.w1 * v1.normal * v1.invW + bary.w2 * v2.normal * v2.invW) / interpolatedInvW;
+			Vector3<float> interpolated_WorldPos = (bary.w0 * v0.worldPos * v0.invW + bary.w1 * v1.worldPos * v1.invW + bary.w2 * v2.worldPos * v2.invW) / interpolatedInvW;
+
+
+			if (bary.isInside) {
+				uint8_t currentBaseR = 0;
+				uint8_t currentBaseG = 0;
+				uint8_t currentBaseB = 0;
+				float intensity = ComputeLightIntensity(interpolated_WorldPos, interpolated_Normal);
+
+				if (IsUsingZBuffer) {
+					// Perform Z-buffering check
+					int bufferIndex = y * m_width + x;
+					if (bary.depth < m_zbuffer[bufferIndex]) {
+						m_zbuffer[bufferIndex] = bary.depth;
+						texture.Sample(trueUV.x, trueUV.y, currentBaseR, currentBaseG, currentBaseB);
+
+						uint8_t phongR = (uint8_t)std::clamp(currentBaseR * intensity, 0.0f, 255.0f);
+						uint8_t phongG = (uint8_t)std::clamp(currentBaseG * intensity, 0.0f, 255.0f);
+						uint8_t phongB = (uint8_t)std::clamp(currentBaseB * intensity, 0.0f, 255.0f);
+
+						setPixel(x, y, (0xFF << 24) | (phongR << 16) | (phongG << 8) | phongB);
+					}
+				} else {
+					texture.Sample(trueUV.x, trueUV.y, currentBaseR, currentBaseG, currentBaseB);
+					uint8_t phongR = (uint8_t)std::clamp(currentBaseR * intensity, 0.0f, 255.0f);
+					uint8_t phongG = (uint8_t)std::clamp(currentBaseG * intensity, 0.0f, 255.0f);
+					uint8_t phongB = (uint8_t)std::clamp(currentBaseB * intensity, 0.0f, 255.0f);
+
+					setPixel(x, y, (0xFF << 24) | (phongR << 16) | (phongG << 8) | phongB);
+				}
+
+			}
+		}
+	}
+}
+```

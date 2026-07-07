@@ -18,18 +18,29 @@ public:
          * where the UV origin (0,0) is firmly anchored at the BOTTOM-LEFT.
          */
         try {
-            // Load and transfer ownership safely to this class instance
             m_PixelData = ImageData::GetImageData(filepath, m_Width, m_Height, m_Channels);
         }
-        catch (const std::exception& e) {
-            std::cerr << "SoftwareTexture Error: " << e.what() << std::endl;
-            throw; // Re-throw to let the caller handle instantiation failure
+        catch (const std::runtime_error& e) {
+            // Print the exact error message to the console or output window
+            std::cerr << "Image Loading Failed: " << e.what() << std::endl;
+
+            // Fallback: Assign a missing-texture color (e.g., solid magenta) to prevent rendering crashes
+            m_PixelData = nullptr;
+            m_Width = 0;
+            m_Height = 0;
         }
     }
 
     // A fast inline sampler helper function for your rasterizer loops
     // Takes normalized UV coordinates (0.0 to 1.0) and returns a pixel index or color
     void Sample(float u, float v, uint8_t& r, uint8_t& g, uint8_t& b) const {
+        if (!m_PixelData) {
+            r = 255;
+            g = 0;
+            b = 255;
+            return;
+        }
+
         // 1. Clamp UVs to avoid out-of-bounds crashes
         u = std::max(0.0f, std::min(u, 1.0f));
         v = std::max(0.0f, std::min(v, 1.0f));

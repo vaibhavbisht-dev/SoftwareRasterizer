@@ -88,27 +88,69 @@ void FrameBuffer::DrawTriangle(TransformedVertex v0, TransformedVertex v1, Trans
 			// Implementation for point-in-triangle check would go here
 			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), v0.position, v1.position, v2.position);
 
-			float interpoaltedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
-			Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpoaltedInvW;
+			float interpolatedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
+			Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpolatedInvW;
+
+			Vector3<float> interpolated_Normal = (bary.w0 * v0.normal * v0.invW + bary.w1 * v1.normal * v1.invW + bary.w2 * v2.normal * v2.invW) / interpolatedInvW;
+			Vector3<float> interpolated_WorldPos = (bary.w0 * v0.worldPos * v0.invW + bary.w1 * v1.worldPos * v1.invW + bary.w2 * v2.worldPos * v2.invW) / interpolatedInvW;
 
 
 			if (bary.isInside) {
+				uint8_t currentBaseR = 0;
+				uint8_t currentBaseG = 0;
+				uint8_t currentBaseB = 0;
+				float intensity = ComputeLightIntensity(interpolated_WorldPos, interpolated_Normal);
+
 				if (IsUsingZBuffer) {
 					// Perform Z-buffering check
 					int bufferIndex = y * m_width + x;
 					if (bary.depth < m_zbuffer[bufferIndex]) {
 						m_zbuffer[bufferIndex] = bary.depth;
-						texture.Sample(trueUV.x, trueUV.y, r, g, b);
-						setPixel(x, y, (0xFF << 24) | (r << 16) | (g << 8) | b);
+						texture.Sample(trueUV.x, trueUV.y, currentBaseR, currentBaseG, currentBaseB);
+
+						uint8_t phongR = (uint8_t)std::clamp(currentBaseR * intensity, 0.0f, 255.0f);
+						uint8_t phongG = (uint8_t)std::clamp(currentBaseG * intensity, 0.0f, 255.0f);
+						uint8_t phongB = (uint8_t)std::clamp(currentBaseB * intensity, 0.0f, 255.0f);
+
+						setPixel(x, y, (0xFF << 24) | (phongR << 16) | (phongG << 8) | phongB);
 					}
 				} else {
-					texture.Sample(trueUV.x, trueUV.y, r, g, b);
-					setPixel(x, y, (0xFF << 24) | (r << 16) | (g << 8) | b);
+					texture.Sample(trueUV.x, trueUV.y, currentBaseR, currentBaseG, currentBaseB);
+					uint8_t phongR = (uint8_t)std::clamp(currentBaseR * intensity, 0.0f, 255.0f);
+					uint8_t phongG = (uint8_t)std::clamp(currentBaseG * intensity, 0.0f, 255.0f);
+					uint8_t phongB = (uint8_t)std::clamp(currentBaseB * intensity, 0.0f, 255.0f);
+
+					setPixel(x, y, (0xFF << 24) | (phongR << 16) | (phongG << 8) | phongB);
 				}
-				
+
 			}
 		}
 	}
+}
+
+float FrameBuffer::ComputeLightIntensity(Vector3<float> worldPos, Vector3<float> normal) {
+	
+	// 1. Normalize input vectors
+	Vector3<float> N = normal.normalized();
+
+	// 2. Compute light direction vector (L)
+	Vector3<float> L = (m_lightSource - worldPos).normalized();
+
+	// 3. Calculate Diffuse component (Lambert's Cosine Law)
+	float diffuse_factor = std::max(0.0f, Vector3<float>::Dot(N, L));
+	float diffuse = m_diffuseIntensity * diffuse_factor;
+
+	// 4. Calculate Specular component using True Blinn-Phong
+	Vector3<float> viewDir = (m_camPOS - worldPos).normalized(); // Use the set camera position
+	Vector3<float> H = (L + viewDir).normalized(); // Halfway vector
+
+	float specular_factor = std::pow(std::max(0.0f, Vector3<float>::Dot(N, H)), 32.0f); // Shininess = 32
+	float specular = m_specularIntensity * specular_factor;
+
+	// 5. Combine components
+	return m_ambientIntensity + diffuse + specular;
+
+	
 }
 
 
@@ -175,6 +217,10 @@ TransformedVertex FrameBuffer::TransformVertex(Vertex vertex) {
 	TransformedVertex transformedVertex;
 	Vector4<float> vertex4(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f);
 	
+	Vector4<float> tempWorldPos = m_modelMatrix * vertex4;
+	transformedVertex.worldPos.x = tempWorldPos.x;
+	transformedVertex.worldPos.y = tempWorldPos.y;
+	transformedVertex.worldPos.z = tempWorldPos.z;
 
 	vertex4 = m_mvpMatrix * vertex4;
 
@@ -189,6 +235,11 @@ TransformedVertex FrameBuffer::TransformVertex(Vertex vertex) {
 	transformedVertex.position = screenVector;
 	transformedVertex.uv = vertex.uv; // Use the UV coordinates from the input vertex
 	transformedVertex.invW = 1.0f / vertex4.w;
+
+	// Transform the normal using the model matrix (ignoring translation)
+	Vector4<float> normal4(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f);
+	Vector4<float> tempNormal = m_modelMatrix * normal4;
+	transformedVertex.normal = Vector3<float>(tempNormal.x, tempNormal.y, tempNormal.z).normalized();
 
 	return transformedVertex;
 	

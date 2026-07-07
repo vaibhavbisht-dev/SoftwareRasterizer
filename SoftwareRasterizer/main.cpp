@@ -27,49 +27,53 @@ int main(int argc, char* argv[])
         SDL_TEXTUREACCESS_STREAMING,
         WIDTH, HEIGHT);
 
+	Vector3<float> CameraPos(0.0f, 0.0f, 3.0f);
     // CPU-side framebuffer
     FrameBuffer framebuffer(WIDTH, HEIGHT);
     framebuffer.SetUsingZBuffer(true);
-	//SoftwareTexture Mytexture("./assets/texture.png"); // Load your texture here
-	SoftwareTexture Mytexture("./assets/texture.jpg"); // Load your texture here
+	framebuffer.SetLightSource(Vector3<float>(0.0f, 5.0f, 8.0f)); // Light coming from the camera direction
+	framebuffer.SetCameraPosition(CameraPos);
+	//SoftwareTexture Mytexture("./assets/texture.jpg"); // Load your texture here
+	SoftwareTexture Mytexture("./assets/texture1.png"); // Load your texture here
 
     std::vector<Vertex> vertices = {
-        // --- Front Face (Z = 0.5f) ---
-        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 0
-        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 1
-        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 2
-        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 3
+        // --- Front Face (Z = 0.5f) | Normal: (0, 0, 1) ---
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 0
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 1
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 2
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 3
 
-        // --- Back Face (Z = -0.5f) ---
-        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 4
-        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 5
-        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 6
-        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}, // 7
+        // --- Back Face (Z = -0.5f) | Normal: (0, 0, -1) ---
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(0.0f, 0.0f, -1.0f)}, // 4
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(0.0f, 0.0f, -1.0f)}, // 5
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(0.0f, 0.0f, -1.0f)}, // 6
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(0.0f, 0.0f, -1.0f)}, // 7
 
-        // --- Top Face (Y = 0.5f) ---
-        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 8
-        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 9
-        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 10
-        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}, // 11
+        // --- Top Face (Y = 0.5f) | Normal: (0, 1, 0) ---
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(0.0f, 1.0f, 0.0f)}, // 8
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(0.0f, 1.0f, 0.0f)}, // 9
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(0.0f, 1.0f, 0.0f)}, // 10
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(0.0f, 1.0f, 0.0f)}, // 11
 
-        // --- Bottom Face (Y = -0.5f) ---
-        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 12
-        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 13
-        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 14
-        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 15
+        // --- Bottom Face (Y = -0.5f) | Normal: (0, -1, 0) ---
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(0.0f, -1.0f, 0.0f)}, // 12
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(0.0f, -1.0f, 0.0f)}, // 13
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(0.0f, -1.0f, 0.0f)}, // 14
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(0.0f, -1.0f, 0.0f)}, // 15
 
-        // --- Right Face (X = 0.5f) ---
-        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f)}, // 16
-        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f)}, // 17
-        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f)}, // 18
-        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f)}, // 19
+        // --- Right Face (X = 0.5f) | Normal: (1, 0, 0) ---
+        {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(1.0f, 0.0f, 0.0f)}, // 16
+        {Vector3<float>(0.5f, -0.5f, -0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(1.0f, 0.0f, 0.0f)}, // 17
+        {Vector3<float>(0.5f,  0.5f, -0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(1.0f, 0.0f, 0.0f)}, // 18
+        {Vector3<float>(0.5f,  0.5f,  0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(1.0f, 0.0f, 0.0f)}, // 19
 
-        // --- Left Face (X = -0.5f) ---
-        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f)}, // 20
-        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f)}, // 21
-        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f)}, // 22
-        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f)}  // 23
+        // --- Left Face (X = -0.5f) | Normal: (-1, 0, 0) ---
+        {Vector3<float>(-0.5f, -0.5f, -0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(-1.0f, 0.0f, 0.0f)}, // 20
+        {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(-1.0f, 0.0f, 0.0f)}, // 21
+        {Vector3<float>(-0.5f,  0.5f,  0.5f), Vector2<float>(1.0f, 1.0f), Vector3<float>(-1.0f, 0.0f, 0.0f)}, // 22
+        {Vector3<float>(-0.5f,  0.5f, -0.5f), Vector2<float>(0.0f, 1.0f), Vector3<float>(-1.0f, 0.0f, 0.0f)}  // 23
     };
+
 
     // 2. Updated 12 triangles using Counter-Clockwise (CCW) winding referencing the unique vertices
     std::vector<Triangle> triangles = {
@@ -88,7 +92,6 @@ int main(int argc, char* argv[])
     };
 
     // 3. Set view once
-    framebuffer.SetViewMatrix(Vector3<float>(0, 0, 3), Vector3<float>(0, 0, 0), Vector3<float>(0, 1, 0));
 
     // 4. Set projection once
     framebuffer.SetProjectionMatrix(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
@@ -123,6 +126,7 @@ int main(int argc, char* argv[])
 
         // 5b. Call CreateModelMatrix (Center it at origin)
         framebuffer.CreateModelMatrix(Vector3<float>(0, 0, 0), Degree, Vector3<float>(1, 1, 1));
+        framebuffer.SetViewMatrix(CameraPos, Vector3<float>(0, 0, 0), Vector3<float>(0, 1, 0));
 
         // 5c. Call ComputeMVPMatrix
         framebuffer.ComputeMVPMatrix();

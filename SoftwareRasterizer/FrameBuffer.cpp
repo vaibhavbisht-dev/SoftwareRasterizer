@@ -84,21 +84,25 @@ void FrameBuffer::DrawTriangle(TransformedVertex v0, TransformedVertex v1, Trans
 
 	for (int y = min_Y; y <= max_Y; y++) {
 		for (int x = min_X; x <= max_X; x++) {
-			// Check if the point (x, y) is inside the triangle
-			// Implementation for point-in-triangle check would go here
+			float signedArea = (v1.position.x - v0.position.x) * (v2.position.y - v0.position.y)
+				- (v1.position.y - v0.position.y) * (v2.position.x - v0.position.x);
+			if (signedArea >= 0.0f) return;
+
 			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), v0.position, v1.position, v2.position);
-
-			float interpolatedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
-			Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpolatedInvW;
-
-			Vector3<float> interpolated_Normal = (bary.w0 * v0.normal * v0.invW + bary.w1 * v1.normal * v1.invW + bary.w2 * v2.normal * v2.invW) / interpolatedInvW;
-			Vector3<float> interpolated_WorldPos = (bary.w0 * v0.worldPos * v0.invW + bary.w1 * v1.worldPos * v1.invW + bary.w2 * v2.worldPos * v2.invW) / interpolatedInvW;
+			
 
 
 			if (bary.isInside) {
 				uint8_t currentBaseR = 0;
 				uint8_t currentBaseG = 0;
 				uint8_t currentBaseB = 0;
+
+				float interpolatedInvW = bary.w0 * v0.invW + bary.w1 * v1.invW + bary.w2 * v2.invW;
+				Vector2<float> trueUV = (bary.w0 * v0.uv * v0.invW + bary.w1 * v1.uv * v1.invW + bary.w2 * v2.uv * v2.invW) / interpolatedInvW;
+
+				Vector3<float> interpolated_Normal = (bary.w0 * v0.normal * v0.invW + bary.w1 * v1.normal * v1.invW + bary.w2 * v2.normal * v2.invW) / interpolatedInvW;
+				Vector3<float> interpolated_WorldPos = (bary.w0 * v0.worldPos * v0.invW + bary.w1 * v1.worldPos * v1.invW + bary.w2 * v2.worldPos * v2.invW) / interpolatedInvW;
+
 				float intensity = ComputeLightIntensity(interpolated_WorldPos, interpolated_Normal);
 
 				if (IsUsingZBuffer) {

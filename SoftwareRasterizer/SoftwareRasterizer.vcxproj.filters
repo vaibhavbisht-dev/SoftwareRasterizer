@@ -24,6 +24,9 @@
     <ClCompile Include="helper\ImageData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="helper\Parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameBuffer.h">
@@ -37,6 +40,9 @@
     </ClInclude>
     <ClInclude Include="stb_image.h">
       <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="helper\Parser.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

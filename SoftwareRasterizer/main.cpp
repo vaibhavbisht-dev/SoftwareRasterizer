@@ -6,12 +6,10 @@
 #include <cstdint>
 #include "FrameBuffer.h"
 #include "helper/SoftwareTexture.h"
+#include "helper/Parser.h"
 
 // Helper structure to define our triangles
-struct Triangle {
-    int v0, v1, v2;
-    uint32_t color;
-};
+
 
 int main(int argc, char* argv[])
 {
@@ -27,16 +25,21 @@ int main(int argc, char* argv[])
         SDL_TEXTUREACCESS_STREAMING,
         WIDTH, HEIGHT);
 
-	Vector3<float> CameraPos(0.0f, 0.0f, 3.0f);
+	Vector3<float> CameraPos(0.0f, 0.0f, 7.0f);
     // CPU-side framebuffer
     FrameBuffer framebuffer(WIDTH, HEIGHT);
     framebuffer.SetUsingZBuffer(true);
 	framebuffer.SetLightSource(Vector3<float>(0.0f, 5.0f, 8.0f)); // Light coming from the camera direction
 	framebuffer.SetCameraPosition(CameraPos);
 	//SoftwareTexture Mytexture("./assets/texture.jpg"); // Load your texture here
+	OBJParser parser("./assets/cube.obj");
 	SoftwareTexture Mytexture("./assets/texture1.png"); // Load your texture here
 
-    std::vector<Vertex> vertices = {
+	ObjectData objData = parser.ParseOBJ();
+	std::vector<Vertex> vertices = objData.vertices;
+    std::vector<Triangle> triangles = objData.triangles;
+
+    /*std::vector<Vertex> vertices = {
         // --- Front Face (Z = 0.5f) | Normal: (0, 0, 1) ---
         {Vector3<float>(-0.5f, -0.5f,  0.5f), Vector2<float>(0.0f, 0.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 0
         {Vector3<float>(0.5f, -0.5f,  0.5f), Vector2<float>(1.0f, 0.0f), Vector3<float>(0.0f, 0.0f, 1.0f)}, // 1
@@ -89,9 +92,7 @@ int main(int argc, char* argv[])
         {16, 17, 18, 0xFFFFFFFF}, {16, 18, 19, 0xFFFFFFFF},
         // Left face
         {20, 21, 22, 0xFFFFFFFF}, {20, 22, 23, 0xFFFFFFFF}
-    };
-
-    // 3. Set view once
+    };*/
 
     // 4. Set projection once
     framebuffer.SetProjectionMatrix(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);

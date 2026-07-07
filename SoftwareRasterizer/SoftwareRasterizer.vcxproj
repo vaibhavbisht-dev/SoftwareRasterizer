@@ -151,11 +151,13 @@
   <ItemGroup>
     <ClCompile Include="FrameBuffer.cpp" />
     <ClCompile Include="helper\ImageData.cpp" />
+    <ClCompile Include="helper\Parser.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="helper\ImageData.h" />
+    <ClInclude Include="helper\Parser.h" />
     <ClInclude Include="helper\SoftwareTexture.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>

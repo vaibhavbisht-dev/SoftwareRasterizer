@@ -1121,3 +1121,11 @@ ObjectData OBJParser::ParseOBJ() {
 }
 
 ```
+
+## Test Result
+![lighting.png](./Images/Screenshot/lighting.png)
+
+------
+
+## Final Result
+![car.png](./Images/Screenshot/car.png)

@@ -2,6 +2,12 @@
 
 > This is a Practical Implementation of a **Software Rasterizer** created by me in C++.
 
+![Final Result](Images/Screenshot/car.png)
+
+> A CPU-only 3D rendering pipeline built from scratch in C++ — no OpenGL, no DirectX, no GPU. 
+> Implements the full graphics pipeline: rasterization, Z-buffering, perspective-correct texture 
+> mapping, and Blinn-Phong lighting, culminating in a textured, lit OBJ model rendered entirely on CPU.
+
 ## What is a Software Rasterizer ?
 A **Software Rasterizer** is a graphics engine that renders 3D objects into 2D images using CPU instead of a dedicated Graphics Hardware (**GPU**).
 

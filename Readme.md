@@ -1,24 +1,45 @@
 # Software Rasterizer
 
-> This is a Practical Implementation of a **Software Rasterizer** created by me in C++.
-
 ![Final Result](Images/Screenshot/car.png)
 
-> A CPU-only 3D rendering pipeline built from scratch in C++ — no OpenGL, no DirectX, no GPU. 
-> Implements the full graphics pipeline: rasterization, Z-buffering, perspective-correct texture 
-> mapping, and Blinn-Phong lighting, culminating in a textured, lit OBJ model rendered entirely on CPU.
+## Overview
+This is a practical implementation of a software rasterizer, written in C++ using SDL3 for windowing and input.
 
-## What is a Software Rasterizer ?
-A **Software Rasterizer** is a graphics engine that renders 3D objects into 2D images using CPU instead of a dedicated Graphics Hardware (**GPU**).
+## Features
+- Bresenham line drawing
+- Edge-function triangle rasterization with barycentric coordinates
+- Z-buffer depth testing
+- Full MVP transform pipeline (Model/View/Projection matrices, perspective-correct)
+- Perspective-correct UV texture mapping
+- Blinn-Phong per-pixel lighting (ambient + diffuse + specular)
+- Custom OBJ parser with fan-triangulation for N-gons
+- Zero external rendering dependencies — no OpenGL/DirectX/Vulkan
 
-## Project Requirements
-**This Project uses these following API and Languages:** 
-- **C++**
-- **SDL3 (For Rendering)**
+## Build Instructions
+1. Clone the repository
+2. Ensure you have SDL3 installed on your system
+3. Build Using Visual Studio or CMake:
+   - For Visual Studio: Open the solution file and build the project.
+   - For CMake: Run `cmake .` followed by `make` (or use your preferred build system).
+	- `Note: I am primarily using Visual Studio 2026 on Windows, so the project is set up for that environment. Adjust accordingly for other platforms.`
+4. Run the application (ensure you have SLD3.dll in your Program Release / Debug Folder)
 
+
+## Architecture
+### FrameBuffer
+FrameBuffer is a class that manages the pixel data for the rendered image. It provides methods to set pixel colors, clear the buffer, and retrieve the final image for display.
+### Parser
+The Parser class is responsible for loading 3D models from OBJ files. It reads vertex positions, normals, and texture coordinates, and constructs the necessary data structures for rendering.
+### SoftwareTexture
+SoftwareTexture handles loading and sampling textures from image files. It provides methods for retrieving color values based on UV coordinates, supporting perspective-correct texture mapping.
+### Vector2 ,Vector3, Vector4 and Matrix4
+These are my custom classes for handling 2D and 3D vectors, as well as 4x4 matrices. They provide essential operations such as addition, subtraction, dot product, cross product, normalization, and matrix multiplication, which are crucial for implementing the rendering pipeline.
+
+
+## Technical Deep Dive
 ## Creating a Frame Buffer
 ### What is a Frame Buffer?
-Your monitor displays a picture Bu Lighting up a grid of pixels. Something has to decide what that each pixel should be. That something is a **FrameBuffer**. It is a block of memory where each slot corresponds to one pixel on the memory.<br>
+Your monitor displays a picture by lighting up a grid of pixels. Something has to decide what each pixel should be. That something is a **FrameBuffer**.
 Think of it as a flat 1D array representing a 2D grid.<br>
 `std::vector<uint32_t> m_buffer;`
 >Pixel at (x,y) lives at index: `y * width + x`<br>
@@ -35,9 +56,7 @@ Let's Assume pixel in a screen is a grid: <br>
 | **y=3** | [M] | [N] | [O] | [P] |
 
 
-And Memory is stored in a single Continuous line: <br>
-
-And memory is stored in a continuous line.
+Memory is stored in a continuous line:
 
 | Memory Index | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | 
@@ -64,10 +83,10 @@ The Window Resolution is `800 x 600` So that Means a total of `480000 pixels`.<b
 480000 pixels = 1920000 bytes = 1.92 MB<br>
 
 **The format ARGB8888 means:**
-- A  → Alpha → 8 bytes
-- R  → Red → 8 bytes
-- G  → Green → 8 bytes
-- B  → Blue → 8 bytes
+- A  → Alpha → 8 bits
+- R  → Red → 8 bits
+- G  → Green → 8 bits
+- B  → Blue → 8 bits
 
 So, `0xFFFF0000` is fully opaque, full red with no green or blue.<br>
 
@@ -519,10 +538,10 @@ up = cross (forward, right)
 ```
 **The Resulting Matrix is:**
 ```
-|right.x       right.y      right.z      -dot(right, E)|
-|up.x          up.y         up.z         -dot(right, E)|
-|forward.x     forward.y    forward.z    -dot(right, E)|
-|0             0            0            1             |
+|right.x       right.y      right.z      -dot(right, E)  |
+|up.x          up.y         up.z         -dot(up, E)     |
+|forward.x     forward.y    forward.z    -dot(forward, E)|
+|0             0            0            1               |
 ```
 
 **What This Does:** The Top Left 3x3 rotates the world so the camera's axis align with the world axis. The right camera Translate so that The camera ends up at the origin.
@@ -620,7 +639,7 @@ This produces Normalized Device Coordinates(NDC) everything visible is between -
 After the perspective divide we Have NDC Coordinates (-1 to 1). Now We have to map them to pixels:
 ```
 screen.x = (NDC.x + 1) * 0.5 * WIDTH
-screen.y = (NDC.x + 1) * 0.5 * WIDTH
+screen.y = (1 - NDC.y) * 0.5 * HEIGHT
 ```
 >**The Y Flip:** NDC Y = +1 is Top of the screen. Screen Y = 0 is top of the screen. They're opposite. the formula `1 - NDC.y` performs this flip. with out this every thing renders upside down.
 
@@ -1069,7 +1088,7 @@ ObjectData OBJParser::ParseOBJ() {
 
                 token_stream >> v_idx;
                 if (vertex_token.find("  ") != std::string::npos) {
-                    // Handing double slash formatting: v//vn
+                    // Handling double slash formatting: v//vn
                     token_stream >> vn_idx;
                 }
                 else {
@@ -1131,7 +1150,10 @@ ObjectData OBJParser::ParseOBJ() {
 ## Test Result
 ![lighting.png](./Images/Screenshot/lighting.png)
 
-------
+## Known Limitations
+- No near-plane clipping
+- No mipmapping
+- Single-threaded (no per-row/tile parallelism)
 
-## Final Result
-![car.png](./Images/Screenshot/car.png)
+## Credits / Resources Used
+TinyRenderer, Scratchapixel, SDL3 and nothings/stb_image

@@ -154,6 +154,7 @@
     <ClCompile Include="helper\Parser.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer\Renderer.cpp" />
+    <ClCompile Include="Thread\ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataStructures.h" />
@@ -163,6 +164,7 @@
     <ClInclude Include="helper\SoftwareTexture.h" />
     <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="Thread\ThreadPool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

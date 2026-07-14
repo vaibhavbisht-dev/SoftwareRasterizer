@@ -5,7 +5,8 @@
 Renderer::Renderer(int width, int height, FrameBuffer& framebuffer)
     : m_width(width), m_height(height), m_framebuffer(framebuffer),
     m_cameraPos(0.0f, 2.0f, 7.0f), m_rotationDegree(0.0f, 0.0f, 0.0f),
-    m_window(nullptr), m_sdlRenderer(nullptr), m_sdlTexture(nullptr) {}
+    m_window(nullptr), m_sdlRenderer(nullptr), m_sdlTexture(nullptr),
+    m_threadPool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4) {}
 
 Renderer::~Renderer() {
     if (m_sdlTexture) SDL_DestroyTexture(m_sdlTexture);
@@ -67,16 +68,18 @@ void Renderer::RenderFrame(const std::vector<Vertex>& vertices,
         m_transformedVertices[i] = m_framebuffer.TransformVertex(vertices[i]);
     }
 	// Rasterization Stage
-	std::vector<std::thread> threads;
     unsigned int numThreads = std::thread::hardware_concurrency();
     if (numThreads == 0) numThreads = 4;
-	int rowsPerThread = m_height / numThreads;
-    for (int i = 0; i < numThreads; i++) {
-		int minRow = i * rowsPerThread;
-        int maxRow = (i == numThreads -1)? m_height - 1 : (minRow + rowsPerThread - 1);
-        threads.emplace_back(&FrameBuffer::RenderBand, &m_framebuffer, minRow, maxRow, std::cref(m_transformedVertices), std::cref(triangles), std::ref(texture) );
+    int rowsPerThread = m_height / numThreads;
+
+    for (unsigned int i = 0; i < numThreads; i++) {
+        int minRow = i * rowsPerThread;
+        int maxRow = (i == numThreads - 1) ? m_height - 1 : (minRow + rowsPerThread - 1);
+        m_threadPool.Enqueue([this, minRow, maxRow, &triangles, &texture] {
+            m_framebuffer.RenderBand(minRow, maxRow, m_transformedVertices, triangles, texture);
+            });
     }
-    for (auto& t : threads) t.join();
+    m_threadPool.WaitAll();
 
     // Output Present Stage
     SDL_UpdateTexture(m_sdlTexture, nullptr, m_framebuffer.getBuffer().data(), m_width * sizeof(uint32_t));

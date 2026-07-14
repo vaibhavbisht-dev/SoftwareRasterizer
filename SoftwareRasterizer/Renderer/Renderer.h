@@ -5,6 +5,8 @@
 #include "../helper/SoftwareTexture.h"
 #include "../math/Vector3.h"
 #include "../helper/Parser.h"
+#include "../DataStructures.h"
+#include "../Thread/ThreadPool.h"
 
 class Renderer {
 public:
@@ -33,4 +35,5 @@ private:
     // Core Rasterizer components
     FrameBuffer& m_framebuffer;
     std::vector<TransformedVertex> m_transformedVertices;
+	ThreadPool m_threadPool;
 };

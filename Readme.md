@@ -17,12 +17,12 @@ This is a practical implementation of a software rasterizer, written in C++ usin
 
 ## Build Instructions
 1. Clone the repository
-2. Ensure you have SDL3 installed on your system
-3. Build Using Visual Studio or CMake:
+2. Build Using Visual Studio or CMake:
    - For Visual Studio: Open the solution file and build the project.
    - For CMake: Run `cmake .` followed by `make` (or use your preferred build system).
 	- `Note: I am primarily using Visual Studio 2026 on Windows, so the project is set up for that environment. Adjust accordingly for other platforms.`
-4. Run the application (ensure you have SLD3.dll in your Program Release / Debug Folder)
+3. Run the application
+4. Make sure assets folder is in the same directory as the executable, as it contains the models and textures.
 
 
 ## Architecture
@@ -1214,7 +1214,6 @@ void RenderBand(int min_Rows, int max_Rows, const std::vector<TransformedVertex>
 ## Known Limitations
 - No near-plane clipping
 - No mipmapping
-- Single-threaded (no per-row/tile parallelism)
 
 ## Credits / Resources Used
 TinyRenderer, Scratchapixel, SDL3 and nothings/stb_image

@@ -2,31 +2,30 @@
 #include <thread>
 
 // 1. Properly initialize the FrameBuffer reference in the constructor initializer list
-Renderer::Renderer(int width, int height, FrameBuffer& framebuffer)
-    : m_width(width), m_height(height), m_framebuffer(framebuffer),
+Renderer::Renderer(int width, int height, FrameBuffer& framebuffer, Win32_Window& window)
+    : m_width(width), m_height(height), m_framebuffer(framebuffer), m_window(window),
     m_cameraPos(0.0f, 2.0f, 7.0f), m_rotationDegree(0.0f, 0.0f, 0.0f),
-    m_window(nullptr), m_sdlRenderer(nullptr), m_sdlTexture(nullptr),
+    //m_window(nullptr), m_sdlRenderer(nullptr), m_sdlTexture(nullptr),
     m_threadPool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4) {}
 
 Renderer::~Renderer() {
-    if (m_sdlTexture) SDL_DestroyTexture(m_sdlTexture);
-    if (m_sdlRenderer) SDL_DestroyRenderer(m_sdlRenderer);
-    if (m_window) SDL_DestroyWindow(m_window);
-    SDL_Quit();
+    //if (m_sdlTexture) SDL_DestroyTexture(m_sdlTexture);
+    //if (m_sdlRenderer) SDL_DestroyRenderer(m_sdlRenderer);
+    //if (m_window) SDL_DestroyWindow(m_window);
+    //SDL_Quit();
 }
 
 bool Renderer::Initialize() {
-    if (!SDL_Init(SDL_INIT_VIDEO)) return false;
+    //if (!SDL_Init(SDL_INIT_VIDEO)) return false;
 
-    m_window = SDL_CreateWindow("Software Rasterizer", m_width, m_height, 0);
-    if (!m_window) return false;
+    //m_window = SDL_CreateWindow("Software Rasterizer", m_width, m_height, 0);
+    //if (!m_window) return false;
 
-    m_sdlRenderer = SDL_CreateRenderer(m_window, nullptr);
-    if (!m_sdlRenderer) return false;
+    //m_sdlRenderer = SDL_CreateRenderer(m_window, nullptr);
+    //if (!m_sdlRenderer) return false;
 
-    m_sdlTexture = SDL_CreateTexture(m_sdlRenderer, SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING, m_width, m_height);
-    if (!m_sdlTexture) return false;
+    //m_sdlTexture = SDL_CreateTexture(m_sdlRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, m_width, m_height);
+    //if (!m_sdlTexture) return false;
 
     // Configure your framebuffer settings via reference
     m_framebuffer.SetUsingZBuffer(true);
@@ -82,7 +81,8 @@ void Renderer::RenderFrame(const std::vector<Vertex>& vertices,
     m_threadPool.WaitAll();
 
     // Output Present Stage
-    SDL_UpdateTexture(m_sdlTexture, nullptr, m_framebuffer.getBuffer().data(), m_width * sizeof(uint32_t));
-    SDL_RenderTexture(m_sdlRenderer, m_sdlTexture, nullptr, nullptr);
-    SDL_RenderPresent(m_sdlRenderer);
+    m_window.Present(m_framebuffer.getBuffer().data(), m_width, m_height);
+    //SDL_UpdateTexture(m_sdlTexture, nullptr, m_framebuffer.getBuffer().data(), m_width * sizeof(uint32_t));
+    //SDL_RenderTexture(m_sdlRenderer, m_sdlTexture, nullptr, nullptr);
+    //SDL_RenderPresent(m_sdlRenderer);
 }

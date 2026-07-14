@@ -1,5 +1,5 @@
 #pragma once
-#include <SDL3/SDL.h>
+//#include <SDL3/SDL.h>
 #include <vector>
 #include "../FrameBuffer.h"
 #include "../helper/SoftwareTexture.h"
@@ -7,10 +7,11 @@
 #include "../helper/Parser.h"
 #include "../DataStructures.h"
 #include "../Thread/ThreadPool.h"
+#include "../Window/Win32_Window.h"
 
 class Renderer {
 public:
-    Renderer(int width, int height, FrameBuffer& framebuffer);
+    Renderer(int width, int height, FrameBuffer& framebuffer, Win32_Window& window);
     ~Renderer();
 
     bool Initialize();
@@ -28,9 +29,10 @@ private:
     Vector3<float> m_rotationDegree;
 
     // Windowing API specific objects (Easy to swap to Win32 later)
-    SDL_Window* m_window;
-    SDL_Renderer* m_sdlRenderer;
-    SDL_Texture* m_sdlTexture;
+	Win32_Window& m_window;
+    //SDL_Window* m_window;
+    //SDL_Renderer* m_sdlRenderer;
+    //SDL_Texture* m_sdlTexture;
 
     // Core Rasterizer components
     FrameBuffer& m_framebuffer;

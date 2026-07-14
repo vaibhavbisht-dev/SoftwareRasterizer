@@ -152,9 +152,11 @@
     <ClCompile Include="FrameBuffer.cpp" />
     <ClCompile Include="helper\ImageData.cpp" />
     <ClCompile Include="helper\Parser.cpp" />
+    <ClCompile Include="helper\Timer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer\Renderer.cpp" />
     <ClCompile Include="Thread\ThreadPool.cpp" />
+    <ClCompile Include="Window\Win32_Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataStructures.h" />
@@ -162,9 +164,11 @@
     <ClInclude Include="helper\ImageData.h" />
     <ClInclude Include="helper\Parser.h" />
     <ClInclude Include="helper\SoftwareTexture.h" />
+    <ClInclude Include="helper\Timer.h" />
     <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="Thread\ThreadPool.h" />
+    <ClInclude Include="Window\Win32_Window.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

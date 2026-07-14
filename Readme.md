@@ -1176,15 +1176,18 @@ void RenderFrame(const std::vector<Vertex>& vertices,
         m_transformedVertices[i] = m_framebuffer.TransformVertex(vertices[i]);
     }
 	// Rasterization Stage
-	std::vector<std::thread> threads;
-	const int numThreads = std::thread::hardware_concurrency();
-	int rowsPerThread = m_height / numThreads;
-    for (int i = 0; i < numThreads; i++) {
-		int minRow = i * rowsPerThread;
-        int maxRow = (i == numThreads -1)? m_height - 1 : (minRow + rowsPerThread - 1);
-        threads.emplace_back(&FrameBuffer::RenderBand, &m_framebuffer, minRow, maxRow, std::cref(m_transformedVertices), std::cref(triangles), std::ref(texture) );
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4;
+    int rowsPerThread = m_height / numThreads;
+
+    for (unsigned int i = 0; i < numThreads; i++) {
+        int minRow = i * rowsPerThread;
+        int maxRow = (i == numThreads - 1) ? m_height - 1 : (minRow + rowsPerThread - 1);
+        m_threadPool.Enqueue([this, minRow, maxRow, &triangles, &texture] {
+            m_framebuffer.RenderBand(minRow, maxRow, m_transformedVertices, triangles, texture);
+            });
     }
-    for (auto& t : threads) t.join();
+    m_threadPool.WaitAll();
 
     // Output Present Stage
     SDL_UpdateTexture(m_sdlTexture, nullptr, m_framebuffer.getBuffer().data(), m_width * sizeof(uint32_t));

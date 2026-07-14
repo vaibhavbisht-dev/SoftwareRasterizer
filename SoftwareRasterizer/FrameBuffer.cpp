@@ -67,26 +67,29 @@ void FrameBuffer::DrawLine(int x0, int y0, int x1, int y1, uint32_t color)
 	}
 }
 
-void FrameBuffer::DrawTriangle(TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture)
+void FrameBuffer::DrawTriangle(int min_Rows, int max_Rows,TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture)
 {
+	float signedArea = (v1.position.x - v0.position.x) * (v2.position.y - v0.position.y)
+		- (v1.position.y - v0.position.y) * (v2.position.x - v0.position.x);
+	if (signedArea >= 0.0f) return;
 	
-	int min_X = (int)std::floor(std::min({ v0.position.x, v1.position.x, v2.position.x }));
-	int max_X = (int)std::ceil(std::max({ v0.position.x, v1.position.x, v2.position.x }));
-	int min_Y = (int)std::floor(std::min({ v0.position.y, v1.position.y, v2.position.y }));
-	int max_Y = (int)std::ceil(std::max({ v0.position.y, v1.position.y, v2.position.y }));
+	// 3. Thread-Aware Bounding Box Calculation
+	int min_X = std::max(0, (int)std::floor(std::min({ v0.position.x, v1.position.x, v2.position.x })));
+	int max_X = std::min(m_width - 1, (int)std::ceil(std::max({ v0.position.x, v1.position.x, v2.position.x })));
 
-	min_X = std::max(0, min_X);
-	max_X = std::min(m_width - 1, max_X);
-	min_Y = std::max(0, min_Y);
-	max_Y = std::min(m_height - 1, max_Y);
+	// Clamp Y directly to the thread's allocated band
+	int min_Y = std::max({ 0, min_Rows, (int)std::floor(std::min({ v0.position.y, v1.position.y, v2.position.y })) });
+	int max_Y = std::min({ m_height - 1, max_Rows, (int)std::ceil(std::max({ v0.position.y, v1.position.y, v2.position.y })) });
+
+	if (min_Y > max_Y || min_X > max_X) return;
 
 	uint8_t r, g, b;
 
 	for (int y = min_Y; y <= max_Y; y++) {
+		if (y < min_Rows) continue;
+		if (y > max_Rows) break;
 		for (int x = min_X; x <= max_X; x++) {
-			float signedArea = (v1.position.x - v0.position.x) * (v2.position.y - v0.position.y)
-				- (v1.position.y - v0.position.y) * (v2.position.x - v0.position.x);
-			if (signedArea >= 0.0f) return;
+			
 
 			BarycentricResults bary = computeBarycentricCoordinates(Vector3<float>(x, y, 0), v0.position, v1.position, v2.position);
 			
@@ -129,6 +132,17 @@ void FrameBuffer::DrawTriangle(TransformedVertex v0, TransformedVertex v1, Trans
 
 			}
 		}
+	}
+}
+
+void FrameBuffer::RenderBand(int min_Rows, int max_Rows, const std::vector<TransformedVertex>& transformedVerts, const std::vector<Triangle>& triangles, SoftwareTexture& texture)
+{
+	for(const auto& tri : triangles) {
+		const TransformedVertex& v0 = transformedVerts[tri.v0];
+		const TransformedVertex& v1 = transformedVerts[tri.v1];
+		const TransformedVertex& v2 = transformedVerts[tri.v2];
+
+		DrawTriangle(min_Rows, max_Rows, v0, v1, v2, texture);
 	}
 }
 

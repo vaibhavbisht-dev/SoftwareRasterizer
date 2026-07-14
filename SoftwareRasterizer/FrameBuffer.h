@@ -5,6 +5,7 @@
 #include "math/Vector3.h"
 #include "math/Vector4.h"
 #include "math/Matrix4.h"
+#include "DataStructures.h"
 #include <cstdint>
 #include <algorithm>
 #include "helper/SoftwareTexture.h"
@@ -16,13 +17,7 @@ struct BarycentricResults
 	bool isInside = true;
 	float depth;
 };
-struct Vertex
-{
-	Vector3<float> position;
-	Vector2<float> uv;
-	Vector3<float> normal;
 
-};
 struct TransformedVertex
 {
 	Vector3<float> position;
@@ -43,7 +38,11 @@ public:
 	void setPixel(int x, int y, uint32_t color);
 
 	void DrawLine(int x0, int y0, int x1, int y1, uint32_t color);
-	void DrawTriangle(TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture);
+	void DrawTriangle(int min_Rows, int max_Rows, TransformedVertex v0, TransformedVertex v1, TransformedVertex v2, SoftwareTexture& texture);
+
+	void RenderBand(int min_Rows, int max_Rows, const std::vector<TransformedVertex>& transformedVerts,
+		const std::vector<Triangle>& triangles,
+		SoftwareTexture& texture);
 
 
 	std::vector<uint32_t>& getBuffer() { return m_buffer; }

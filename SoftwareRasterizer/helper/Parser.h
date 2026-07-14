@@ -1,18 +1,9 @@
 #pragma once
 #include <vector>
-#include "../FrameBuffer.h"
+#include "../DataStructures.h"
 #include <string>
 #include <fstream>
-
-struct Triangle {
-    int v0, v1, v2;
-    uint32_t color;
-};
-
-struct ObjectData {
-	std::vector<Vertex> vertices;
-	std::vector<Triangle> triangles;
-};
+#include <map>
 
 struct VertexIndexKey {
     int v_idx, vt_idx, vn_idx; // Stores the separate raw OBJ indices for a single vertex corner

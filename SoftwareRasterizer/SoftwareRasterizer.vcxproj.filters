@@ -27,6 +27,9 @@
     <ClCompile Include="helper\Parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameBuffer.h">
@@ -42,6 +45,12 @@
       <Filter>Resource Files</Filter>
     </ClInclude>
     <ClInclude Include="helper\Parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataStructures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

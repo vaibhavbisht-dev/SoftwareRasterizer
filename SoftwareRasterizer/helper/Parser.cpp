@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <map>
+#include <algorithm>
 
 OBJParser::OBJParser(const std::string& fileLocation) : m_path(fileLocation) {
     m_file.open(fileLocation);

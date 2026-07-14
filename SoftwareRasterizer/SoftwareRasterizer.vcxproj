@@ -153,12 +153,15 @@
     <ClCompile Include="helper\ImageData.cpp" />
     <ClCompile Include="helper\Parser.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Renderer\Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DataStructures.h" />
     <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="helper\ImageData.h" />
     <ClInclude Include="helper\Parser.h" />
     <ClInclude Include="helper\SoftwareTexture.h" />
+    <ClInclude Include="Renderer\Renderer.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

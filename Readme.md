@@ -1147,6 +1147,64 @@ ObjectData OBJParser::ParseOBJ() {
 
 ```
 
+## Multithreading 
+**The Problem:** Our Renderer is single-threaded. It can only use one CPU core. Modern CPUs have multiple cores, and we want to take advantage of that to speed up rendering.
+Currently, Every frame we loop over every triangle, and for each triangle we loop over every pixel in its bounds. This is a lot of work, and it can be done in parallel. Each triangle is independent of the others, so we can render multiple triangles at the same time.
+Modern CPUs have 6,8,16+ cores. We are using only one. That's the entire problem.
+
+> **Warning:** If we try to render multiple triangles at the same time, they will all be writing to the same framebuffer and z-buffer. This can cause race conditions. Instead We will divide the screen into tiles, and each thread will render a tile. Each tile will have its own framebuffer and z-buffer. At the end of the frame, we will combine all the tiles into the final framebuffer.
+
+```
+void RenderFrame(const std::vector<Vertex>& vertices,
+    const std::vector<Triangle>& triangles,
+     SoftwareTexture& texture,
+    float deltaTime) {
+    m_framebuffer.clearbuffer();
+
+    // 3. Object-level rotation vs Camera rotation updates
+    // Note: If you want m_rotationDegree to control the CAMERA rotation, 
+    // update your SetViewMatrix calculation here. If it controls the OBJECT, keep this as-is:
+    m_rotationDegree.y += 25.5f * deltaTime;
+
+    m_framebuffer.CreateModelMatrix(Vector3<float>(0, 0, 0), m_rotationDegree, Vector3<float>(1, 1, 1));
+    m_framebuffer.SetViewMatrix(m_cameraPos, Vector3<float>(0, 0, 0), Vector3<float>(0, 1, 0));
+    m_framebuffer.ComputeMVPMatrix();
+
+    // Vertex Stage
+    m_transformedVertices.resize(vertices.size());
+    for (size_t i = 0; i < vertices.size(); i++) {
+        m_transformedVertices[i] = m_framebuffer.TransformVertex(vertices[i]);
+    }
+	// Rasterization Stage
+	std::vector<std::thread> threads;
+	const int numThreads = std::thread::hardware_concurrency();
+	int rowsPerThread = m_height / numThreads;
+    for (int i = 0; i < numThreads; i++) {
+		int minRow = i * rowsPerThread;
+        int maxRow = (i == numThreads -1)? m_height - 1 : (minRow + rowsPerThread - 1);
+        threads.emplace_back(&FrameBuffer::RenderBand, &m_framebuffer, minRow, maxRow, std::cref(m_transformedVertices), std::cref(triangles), std::ref(texture) );
+    }
+    for (auto& t : threads) t.join();
+
+    // Output Present Stage
+    SDL_UpdateTexture(m_sdlTexture, nullptr, m_framebuffer.getBuffer().data(), m_width * sizeof(uint32_t));
+    SDL_RenderTexture(m_sdlRenderer, m_sdlTexture, nullptr, nullptr);
+    SDL_RenderPresent(m_sdlRenderer);
+}
+
+void RenderBand(int min_Rows, int max_Rows, const std::vector<TransformedVertex>& transformedVerts, const std::vector<Triangle>& triangles, SoftwareTexture& texture)
+{
+	for(const auto& tri : triangles) {
+		const TransformedVertex& v0 = transformedVerts[tri.v0];
+		const TransformedVertex& v1 = transformedVerts[tri.v1];
+		const TransformedVertex& v2 = transformedVerts[tri.v2];
+
+		DrawTriangle(min_Rows, max_Rows, v0, v1, v2, texture);
+	}
+}
+```
+
+
 ## Test Result
 ![lighting.png](./Images/Screenshot/lighting.png)
 

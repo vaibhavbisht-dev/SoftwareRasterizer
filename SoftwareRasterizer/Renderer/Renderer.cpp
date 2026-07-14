@@ -68,7 +68,8 @@ void Renderer::RenderFrame(const std::vector<Vertex>& vertices,
     }
 	// Rasterization Stage
 	std::vector<std::thread> threads;
-	const int numThreads = std::thread::hardware_concurrency();
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4;
 	int rowsPerThread = m_height / numThreads;
     for (int i = 0; i < numThreads; i++) {
 		int minRow = i * rowsPerThread;

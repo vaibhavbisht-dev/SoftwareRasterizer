@@ -86,8 +86,6 @@ void FrameBuffer::DrawTriangle(int min_Rows, int max_Rows,TransformedVertex v0, 
 	uint8_t r, g, b;
 
 	for (int y = min_Y; y <= max_Y; y++) {
-		if (y < min_Rows) continue;
-		if (y > max_Rows) break;
 		for (int x = min_X; x <= max_X; x++) {
 			
 

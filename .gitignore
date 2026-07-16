@@ -3,6 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# CMake build directories
+/build/
+/out/
+/bin/
+
+# Visual Studio cache
+.vs/
+*.user
+
 # User-specific files
 *.rsuser
 *.suo

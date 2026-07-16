@@ -118,3 +118,11 @@ void Win32_Window::Present(const uint32_t* pixels, int width, int height) {
     BitBlt(windowDC, 0, 0, width, height, m_memDC, 0, 0, SRCCOPY);
     ReleaseDC(m_hwnd, windowDC);
 }
+
+void Win32_Window::SetTitle(const char* title) {
+    // Quick narrow-to-wide conversion for a title string (not perf-critical, called rarely)
+    int size = MultiByteToWideChar(CP_UTF8, 0, title, -1, nullptr, 0);
+    std::wstring wtitle(size, 0);
+    MultiByteToWideChar(CP_UTF8, 0, title, -1, &wtitle[0], size);
+    SetWindowText(m_hwnd, wtitle.c_str());
+}

@@ -9,7 +9,7 @@ public:
     ~Win32_Window();
 
     bool Initialize();
-
+    void SetTitle(const char* title);
     // Pumps the Windows message queue. Returns false when the window should close.
     bool PollEvents();
 

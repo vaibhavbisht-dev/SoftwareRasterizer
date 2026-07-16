@@ -19,8 +19,7 @@ This is a practical implementation of a software rasterizer, written in C++ usin
 1. Clone the repository
 2. Build Using Visual Studio or CMake:
    - For Visual Studio: Open the solution file and build the project.
-   - For CMake: Run `cmake .` followed by `make` (or use your preferred build system).
-	- `Note: I am primarily using Visual Studio 2026 on Windows, so the project is set up for that environment. Adjust accordingly for other platforms.`
+   - For CMake: Run `cmake -B build` then run `cmake --build build --config Release`
 3. Run the application
 4. Make sure assets folder is in the same directory as the executable, as it contains the models and textures.
 
